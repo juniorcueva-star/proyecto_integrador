@@ -8,6 +8,7 @@ import com.estiloia.estilo_ia.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,7 +27,7 @@ public class AuthController {
      */
     @PostMapping("/registro")
     public ResponseEntity<AuthResponse> registrar(@Valid @RequestBody RegistroRequest request) {
-        return ResponseEntity.ok(authService.registrar(request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.registrar(request));
     }
 
     /**

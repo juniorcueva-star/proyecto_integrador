@@ -8,6 +8,7 @@ import com.estiloia.estilo_ia.enums.*;
 import com.estiloia.estilo_ia.service.PrendaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -29,11 +30,11 @@ public class PrendaController {
             @Valid @RequestBody PrendaRequest request,
             @AuthenticationPrincipal Usuario usuario
     ) {
-        return ResponseEntity.ok(prendaService.crearPrenda(request, usuario));
+        return ResponseEntity.status(HttpStatus.CREATED).body(prendaService.crearPrenda(request, usuario));
     }
 
     @PostMapping(value = "/con-imagen", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<String> crearPrendaConImagen(
+    public ResponseEntity<PrendaResponse> crearPrendaConImagen(
             @RequestParam String nombre,
             @RequestParam String descripcion,
             @RequestParam String marca,
@@ -47,7 +48,7 @@ public class PrendaController {
             @RequestParam MultipartFile imagen,
             @AuthenticationPrincipal Usuario usuario
     ) {
-        prendaService.crearPrendaConImagen(
+        PrendaResponse response = prendaService.crearPrendaConImagen(
                 nombre,
                 descripcion,
                 marca,
@@ -62,7 +63,7 @@ public class PrendaController {
                 usuario
         );
 
-        return ResponseEntity.ok("Prenda agregada correctamente");
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PatchMapping(value = "/{id}/imagen", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
