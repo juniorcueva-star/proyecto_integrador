@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Login | Estilo IA</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script src="/js/auth.js" defer></script>
+</head>
+<body class="auth-body">
+<main class="auth-card">
+    <h1>Bienvenido</h1>
+    <p>Inicia sesión para continuar.</p>
+
+    <form id="loginForm" class="form">
+        <label>Email</label>
+        <input type="email" id="email" required placeholder="correo@ejemplo.com">
+
+        <label>Contraseña</label>
+        <input type="password" id="password" required placeholder="Tu contraseña">
+
+        <button type="submit" class="btn btn-primary">Ingresar</button>
+    </form>
+
+    <p class="small-text">
+        ¿No tienes cuenta? <a href="/register.html">Regístrate</a>
+    </p>
+
+    <div id="message" class="message"></div>
+</main>
+</body>
+</html>

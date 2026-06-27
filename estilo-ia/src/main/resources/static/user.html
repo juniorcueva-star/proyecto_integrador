@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Usuario | Estilo IA</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+<aside class="sidebar">
+    <h2>Estilo IA</h2>
+    <div class="subtitle">CREA TU PROPIA MODA</div>
+
+    <button onclick="showSection('inicio')">INICIO</button>
+    <button onclick="showSection('agregar')">AGREGAR PRENDA</button>
+    <button onclick="showSection('perfil')">MI PERFIL</button>
+    <button onclick="showSection('pagos')">METODO DE PAGO</button>
+    <button onclick="showSection('simulacionIa')">RECOMENDACIONES IA</button>
+    <button onclick="showSection('soporte')">SOPORTE/RECLAMOS</button>
+    <button class="logout" onclick="logout()">CERRAR SESION</button>
+</aside>
+
+<main class="main-content">
+
+    <section id="inicio" class="section active">
+        <div class="page-header">
+            <h1>Explora prendas sostenibles</h1>
+            <p>Compra, intercambia y reutiliza moda con personas de la comunidad.</p>
+        </div>
+
+        <div class="filters">
+            <div class="search-box">
+                <input type="text" id="buscarTexto" placeholder="Buscar polos, pantalones, marcas...">
+                <button onclick="buscarCatalogo()">Buscar</button>
+            </div>
+
+            <select id="categoriaFiltro">
+                <option value="">Todas las categorias</option>
+                <option value="POLO">Polo</option>
+                <option value="CAMISA">Camisa</option>
+                <option value="PANTALON">Pantalon</option>
+                <option value="SHORT">Short</option>
+                <option value="CASACA">Casaca</option>
+                <option value="CHOMPA">Chompa</option>
+                <option value="VESTIDO">Vestido</option>
+                <option value="FALDA">Falda</option>
+                <option value="ZAPATOS">Zapatos</option>
+                <option value="ZAPATILLAS">Zapatillas</option>
+                <option value="ACCESORIO">Accesorio</option>
+                <option value="OTRO">Otro</option>
+            </select>
+
+            <input type="number" id="precioMinimo" placeholder="Precio minimo" min="0" step="0.01">
+            <input type="number" id="precioMaximo" placeholder="Precio maximo" min="0" step="0.01">
+
+            <button class="btn btn-primary" onclick="buscarCatalogo()">Filtrar</button>
+        </div>
+
+        <div id="catalogo" class="cards-grid"></div>
+    </section>
+
+    <section id="detallePrenda" class="section">
+        <div class="page-header">
+            <h1>Detalle de prenda</h1>
+            <p>Revisa la informacion completa antes de comprar o contactar al vendedor.</p>
+        </div>
+
+        <div id="detallePrendaContenido"></div>
+    </section>
+
+    <section id="agregar" class="section">
+        <div class="page-header">
+            <h1>Agregar prenda</h1>
+            <p>Publica una prenda para venta, intercambio o ambas opciones.</p>
+        </div>
+
+        <form id="prendaForm" class="form panel-form" enctype="multipart/form-data">
+            <div class="form-grid">
+                <input type="text" id="nombrePrenda" required placeholder="Nombre de la prenda">
+                <input type="text" id="marca" required placeholder="Marca">
+
+                <textarea id="descripcion" class="full" required placeholder="Descripcion de la prenda"></textarea>
+                <button type="button" class="btn btn-outline full" onclick="generarDescripcionIa()">
+                    Generar descripcion con IA
+                </button>
+
+                <select id="categoria" required>
+                    <option value="">Categoria</option>
+                    <option value="POLO">Polo</option>
+                    <option value="CAMISA">Camisa</option>
+                    <option value="PANTALON">Pantalon</option>
+                    <option value="SHORT">Short</option>
+                    <option value="CASACA">Casaca</option>
+                    <option value="CHOMPA">Chompa</option>
+                    <option value="VESTIDO">Vestido</option>
+                    <option value="FALDA">Falda</option>
+                    <option value="ZAPATOS">Zapatos</option>
+                    <option value="ZAPATILLAS">Zapatillas</option>
+                    <option value="ACCESORIO">Accesorio</option>
+                    <option value="OTRO">Otro</option>
+                </select>
+
+                <select id="talla" required>
+                    <option value="">Talla</option>
+                    <option value="XS">XS</option>
+                    <option value="S">S</option>
+                    <option value="M">M</option>
+                    <option value="L">L</option>
+                    <option value="XL">XL</option>
+                    <option value="XXL">XXL</option>
+                    <option value="TALLA_28">28</option>
+                    <option value="TALLA_30">30</option>
+                    <option value="TALLA_32">32</option>
+                    <option value="TALLA_34">34</option>
+                    <option value="TALLA_36">36</option>
+                    <option value="TALLA_38">38</option>
+                    <option value="TALLA_40">40</option>
+                    <option value="TALLA_42">42</option>
+                    <option value="UNICA">Unica</option>
+                </select>
+
+                <input type="text" id="color" required placeholder="Color">
+
+                <select id="estadoFisico" required>
+                    <option value="">Estado fisico</option>
+                    <option value="NUEVA">Nueva</option>
+                    <option value="BUEN_ESTADO">Buen estado</option>
+                    <option value="USADA">Usada</option>
+                    <option value="DESGASTADA">Desgastada</option>
+                </select>
+
+                <input type="number" id="precio" required placeholder="Precio" min="0" step="0.01">
+                <button type="button" class="btn btn-outline" onclick="sugerirPrecioIa()">
+                    Sugerir precio IA
+                </button>
+
+                <select id="tipoPublicacion" required>
+                    <option value="">Tipo de publicacion</option>
+                    <option value="VENTA">Venta</option>
+                    <option value="INTERCAMBIO">Intercambio</option>
+                    <option value="VENTA_E_INTERCAMBIO">Venta e intercambio</option>
+                </select>
+
+                <input type="text" id="contacto" required placeholder="WhatsApp o telefono">
+                <input type="file" id="imagen" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" required>
+                <button type="button" class="btn btn-outline full" onclick="analizarFotoPrendaIa()">
+                    Analizar foto y completar formulario
+                </button>
+
+                <button type="submit" class="btn btn-primary full">Guardar prenda</button>
+            </div>
+        </form>
+
+        <div id="mensajePrenda" class="message"></div>
+    </section>
+
+    <section id="perfil" class="section">
+        <div class="page-header">
+            <h1>Mi perfil</h1>
+            <p>Consulta tus prendas, estadisticas, historial y reputacion.</p>
+        </div>
+
+        <div id="perfilContenido"></div>
+    </section>
+
+    <section id="editarPrenda" class="section">
+        <div class="page-header">
+            <h1>Editar prenda</h1>
+            <p>Actualiza la informacion de tu publicacion.</p>
+        </div>
+
+        <form id="editarPrendaForm" class="form panel-form">
+            <input type="hidden" id="editarPrendaId">
+
+            <div class="form-grid">
+                <input type="text" id="editarNombrePrenda" required placeholder="Nombre de la prenda">
+                <input type="text" id="editarMarca" required placeholder="Marca">
+
+                <textarea id="editarDescripcion" class="full" required placeholder="Descripcion"></textarea>
+
+                <select id="editarCategoria" required>
+                    <option value="">Categoria</option>
+                    <option value="POLO">Polo</option>
+                    <option value="CAMISA">Camisa</option>
+                    <option value="PANTALON">Pantalon</option>
+                    <option value="SHORT">Short</option>
+                    <option value="CASACA">Casaca</option>
+                    <option value="CHOMPA">Chompa</option>
+                    <option value="VESTIDO">Vestido</option>
+                    <option value="FALDA">Falda</option>
+                    <option value="ZAPATOS">Zapatos</option>
+                    <option value="ZAPATILLAS">Zapatillas</option>
+                    <option value="ACCESORIO">Accesorio</option>
+                    <option value="OTRO">Otro</option>
+                </select>
+
+                <select id="editarTalla" required>
+                    <option value="">Talla</option>
+                    <option value="XS">XS</option>
+                    <option value="S">S</option>
+                    <option value="M">M</option>
+                    <option value="L">L</option>
+                    <option value="XL">XL</option>
+                    <option value="XXL">XXL</option>
+                    <option value="TALLA_28">28</option>
+                    <option value="TALLA_30">30</option>
+                    <option value="TALLA_32">32</option>
+                    <option value="TALLA_34">34</option>
+                    <option value="TALLA_36">36</option>
+                    <option value="TALLA_38">38</option>
+                    <option value="TALLA_40">40</option>
+                    <option value="TALLA_42">42</option>
+                    <option value="UNICA">Unica</option>
+                </select>
+
+                <input type="text" id="editarColor" required placeholder="Color">
+
+                <select id="editarEstadoFisico" required>
+                    <option value="">Estado fisico</option>
+                    <option value="NUEVA">Nueva</option>
+                    <option value="BUEN_ESTADO">Buen estado</option>
+                    <option value="USADA">Usada</option>
+                    <option value="DESGASTADA">Desgastada</option>
+                </select>
+
+                <input type="number" id="editarPrecio" required placeholder="Precio" min="0" step="0.01">
+
+                <select id="editarTipoPublicacion" required>
+                    <option value="">Tipo de publicacion</option>
+                    <option value="VENTA">Venta</option>
+                    <option value="INTERCAMBIO">Intercambio</option>
+                    <option value="VENTA_E_INTERCAMBIO">Venta e intercambio</option>
+                </select>
+
+                <input type="text" id="editarContacto" required placeholder="WhatsApp o telefono">
+                <input type="text" id="editarImagenUrl" placeholder="URL de imagen actual">
+
+                <button type="submit" class="btn btn-primary full">Guardar cambios</button>
+                <button type="button" class="btn btn-outline full" onclick="showSection('perfil')">Cancelar</button>
+            </div>
+        </form>
+
+        <div id="mensajeEditarPrenda" class="message"></div>
+    </section>
+
+    <section id="pagos" class="section">
+        <div class="page-header">
+            <h1>Metodos de pago</h1>
+            <p>Agrega Yape, Plin, transferencia, efectivo o QR PNG para que otros usuarios puedan pagarte.</p>
+        </div>
+
+        <div class="modern-panel">
+            <form id="metodoPagoForm" class="form" enctype="multipart/form-data">
+                <div class="form-grid">
+                    <select id="tipoMetodoPago" required>
+                        <option value="">Tipo de metodo</option>
+                        <option value="YAPE">Yape</option>
+                        <option value="PLIN">Plin</option>
+                        <option value="TRANSFERENCIA">Transferencia</option>
+                        <option value="EFECTIVO">Efectivo</option>
+                        <option value="OTRO">Otro</option>
+                    </select>
+
+                    <input type="text" id="numeroPago" placeholder="Numero o cuenta">
+                    <input type="text" id="titularPago" placeholder="Titular">
+                    <input type="file" id="imagenQrPago" accept=".png,image/png">
+
+                    <textarea id="instruccionesPago" class="full" placeholder="Instrucciones para el comprador"></textarea>
+
+                    <button type="submit" class="btn btn-primary full">Guardar metodo de pago</button>
+                </div>
+            </form>
+
+            <div id="mensajePago" class="message"></div>
+
+            <h2 style="margin-top: 28px;">Mis metodos de pago</h2>
+            <div id="listaMetodosPago" class="cards-grid"></div>
+        </div>
+    </section>
+
+    <section id="simulacionIa" class="section">
+        <div class="page-header">
+            <h1>Recomendaciones IA</h1>
+            <p>Sube tu foto y arma un look con prendas reales del catalogo segun tu perfil.</p>
+        </div>
+
+        <div class="modern-panel ia-surface">
+            <form id="recomendacionIaForm" class="form" onsubmit="generarRecomendacionIa(event)" enctype="multipart/form-data">
+                <div class="ia-layout">
+                    <div class="ia-photo-panel">
+                        <div class="ia-photo-preview" id="previewFotoIa">
+                            <span>Tu foto aparecera aqui</span>
+                        </div>
+                        <input type="file" id="fotoIa" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" required>
+                        <p class="ia-help-text">PNG, JPG o WEBP</p>
+                    </div>
+
+                    <div class="ia-controls">
+                        <div class="ia-controls-head">
+                            <h2>Define tu look</h2>
+                            <p>La recomendacion usa ocasion, clima y proporciones de tu perfil.</p>
+                        </div>
+                        <div class="form-grid">
+                            <select id="estiloIa" required>
+                                <option value="">Selecciona estilo</option>
+                                <option value="CASUAL">Casual</option>
+                                <option value="FORMAL">Formal</option>
+                                <option value="URBANO">Urbano</option>
+                                <option value="DEPORTIVO">Deportivo</option>
+                                <option value="ELEGANTE">Elegante</option>
+                            </select>
+
+                            <select id="ocasionIa" required>
+                                <option value="">Selecciona ocasion</option>
+                                <option value="CLASES">Clases</option>
+                                <option value="TRABAJO">Trabajo</option>
+                                <option value="SALIDA">Salida casual</option>
+                                <option value="EVENTO">Evento especial</option>
+                            </select>
+
+                            <select id="climaIa" required>
+                                <option value="">Selecciona clima</option>
+                                <option value="CALOR">Calor</option>
+                                <option value="FRIO">Frio</option>
+                                <option value="TEMPLADO">Templado</option>
+                            </select>
+
+                            <input type="number" id="estaturaIa" min="140" max="205" step="1" required placeholder="Estatura en cm">
+
+                            <select id="contexturaIa" required>
+                                <option value="">Selecciona contextura</option>
+                                <option value="DELGADA">Delgada</option>
+                                <option value="NORMAL">Normal</option>
+                                <option value="CONTEXTURA_GRUESA">Contextura gruesa</option>
+                            </select>
+
+                            <button type="submit" class="btn btn-primary full">Analizar foto y recomendar look</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            <div id="mensajeRecomendacionIa" class="message"></div>
+            <div id="resultadoSimulacionIa" style="margin-top: 24px;"></div>
+            <div id="ajusteCombinacionIa" style="margin-top: 24px;"></div>
+        </div>
+    </section>
+
+    <section id="soporte" class="section">
+        <div class="page-header">
+            <h1>Soporte / Reclamos</h1>
+            <p>Reporta problemas con pagos, entregas o publicaciones.</p>
+        </div>
+
+        <div class="modern-panel">
+            <form id="reclamoForm" class="form">
+                <div class="form-grid">
+                    <input type="number" id="usuarioReportadoId" placeholder="ID del usuario reportado">
+                    <input type="number" id="prendaReclamoId" placeholder="ID de la prenda relacionada">
+
+                    <select id="motivoReclamo" required>
+                        <option value="">Motivo del reclamo</option>
+                        <option value="NO_PAGO">No pago</option>
+                        <option value="NO_ENTREGA">No entrego la prenda</option>
+                        <option value="PRODUCTO_DIFERENTE">Producto diferente</option>
+                        <option value="MALA_COMUNICACION">Mala comunicacion</option>
+                        <option value="POSIBLE_ESTAFA">Posible estafa</option>
+                        <option value="OTRO">Otro</option>
+                    </select>
+
+                    <textarea id="descripcionReclamo" class="full" required placeholder="Describe el problema"></textarea>
+
+                    <button type="submit" class="btn btn-primary full">Enviar reclamo</button>
+                </div>
+            </form>
+
+            <div id="mensajeReclamo" class="message"></div>
+
+            <h2 style="margin-top: 28px;">Mis reclamos</h2>
+            <div id="listaMisReclamos" class="cards-grid"></div>
+        </div>
+    </section>
+</main>
+
+<script src="/js/user.js"></script>
+</body>
+</html>
