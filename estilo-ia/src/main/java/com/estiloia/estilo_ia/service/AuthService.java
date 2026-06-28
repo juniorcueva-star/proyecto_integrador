@@ -69,15 +69,16 @@ public class AuthService {
      * Inicia sesion y devuelve un token JWT.
      */
     public AuthResponse login(LoginRequest request) {
+        String emailNormalizado = normalizarEmail(request.email());
 
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        request.email(),
+                        emailNormalizado,
                         request.password()
                 )
         );
 
-        Usuario usuario = usuarioRepository.findByEmail(request.email())
+        Usuario usuario = usuarioRepository.findByEmail(emailNormalizado)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
 
         if (usuario.getEstadoUsuario() != EstadoUsuario.ACTIVO || usuario.getEliminado()) {
