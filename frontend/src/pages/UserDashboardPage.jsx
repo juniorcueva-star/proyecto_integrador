@@ -255,7 +255,7 @@ function UserDashboardPage() {
                 <div>
                   <strong>{product.name || product.nombre}</strong>
                   <p>
-                    {product.category} · {product.size} · {product.status}
+                    {product.category} - {product.size} - {product.status}
                   </p>
                 </div>
                 <span>{product.price}</span>
@@ -316,7 +316,7 @@ function UserDashboardPage() {
             <article className="mini-item">
               <div>
                 <strong>Aun no registraste reclamos</strong>
-                <p>Cuando envíes uno, aparecerá aquí con su estado.</p>
+                <p>Cuando envies uno, aparecera aqui con su estado.</p>
               </div>
               <span>Sin casos</span>
             </article>
@@ -324,7 +324,7 @@ function UserDashboardPage() {
             ownClaims.map((claim) => (
               <article key={claim.id} className="mini-item">
                 <div>
-                  <strong>#{claim.id} · {claim.motivo}</strong>
+                  <strong>#{claim.id} - {claim.motivo}</strong>
                   <p>{claim.descripcion}</p>
                 </div>
                 <span>{claim.estado}</span>
@@ -584,14 +584,18 @@ function UserDashboardPage() {
                 <option value="">Selecciona una prenda</option>
                 {catalogTargets.map((item) => (
                   <option key={item.id} value={item.id}>
-                    #{item.id} · {item.nombre} · {item.nombreVendedor}
+                    #{item.id} - {item.nombre} - {item.nombreVendedor}
                   </option>
                 ))}
               </select>
             </label>
             <label>
               Usuario reportado
-              <input value={claimForm.usuarioReportadoId} readOnly placeholder="Se completa automaticamente" />
+              <input
+                value={claimForm.usuarioReportadoId}
+                readOnly
+                placeholder="Se completa automaticamente"
+              />
             </label>
             <label className="full-span">
               Motivo
