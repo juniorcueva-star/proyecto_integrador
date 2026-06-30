@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { registerRequest } from "../api/auth";
-import { userHighlights } from "../data/mockData";
+import { steps } from "../data/staticData";
 import { persistAuthSession } from "../utils/authStorage";
 
 function RegisterPage() {
@@ -38,19 +37,22 @@ function RegisterPage() {
       <div className="auth-card auth-card-split">
         <div className="auth-side auth-side-dark">
           <div className="auth-copy auth-copy-light">
-            <p className="section-kicker section-kicker-light">Crea tu cuenta</p>
-            <h1>Empieza a vender, comprar e intercambiar con estilo</h1>
+            <p className="section-kicker section-kicker-light">Como funciona</p>
+            <h1>Publica, conecta y da nueva vida a tus prendas</h1>
             <p>
-              Registrate para publicar tus prendas, mostrar tus metodos de pago y
-              construir reputacion en la comunidad.
+              Crea tu cuenta para acceder al dashboard, publicar prendas y
+              gestionar pagos, reclamos y recomendaciones IA.
             </p>
           </div>
 
-          <div className="auth-feature-list">
-            {userHighlights.map((item) => (
-              <article key={item.title} className="auth-feature-card">
-                <h3>{item.title}</h3>
-                <p>{item.description}</p>
+          <div className="auth-steps-list">
+            {steps.map((item) => (
+              <article key={item.number} className="auth-step-card">
+                <span>{item.number}</span>
+                <div>
+                  <h3>{item.title}</h3>
+                  <p>{item.description}</p>
+                </div>
               </article>
             ))}
           </div>
@@ -118,7 +120,7 @@ function RegisterPage() {
           </form>
 
           <div className="auth-meta">
-            <span>¿Ya tienes cuenta?</span>
+            <span>Ya tienes cuenta?</span>
             <Link to="/login">Entrar</Link>
           </div>
         </div>

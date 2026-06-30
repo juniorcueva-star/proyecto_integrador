@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { loginRequest } from "../api/auth";
-import { userHighlights } from "../data/mockData";
+import { steps } from "../data/staticData";
 import { persistAuthSession } from "../utils/authStorage";
 
 function LoginPage() {
@@ -33,19 +32,22 @@ function LoginPage() {
       <div className="auth-card auth-card-split">
         <div className="auth-side auth-side-dark">
           <div className="auth-copy auth-copy-light">
-            <p className="section-kicker section-kicker-light">Bienvenido otra vez</p>
-            <h1>Entra a tu espacio de moda circular</h1>
+            <p className="section-kicker section-kicker-light">Como funciona</p>
+            <h1>Gestiona tu moda circular en tres pasos</h1>
             <p>
-              Gestiona tus prendas, revisa tus mensajes y activa las herramientas
-              de Estilo IA desde un solo lugar.
+              Inicia sesion para publicar prendas, administrar tu perfil y usar
+              las herramientas de Estilo IA desde tu dashboard.
             </p>
           </div>
 
-          <div className="auth-feature-list">
-            {userHighlights.map((item) => (
-              <article key={item.title} className="auth-feature-card">
-                <h3>{item.title}</h3>
-                <p>{item.description}</p>
+          <div className="auth-steps-list">
+            {steps.map((item) => (
+              <article key={item.number} className="auth-step-card">
+                <span>{item.number}</span>
+                <div>
+                  <h3>{item.title}</h3>
+                  <p>{item.description}</p>
+                </div>
               </article>
             ))}
           </div>
@@ -83,7 +85,7 @@ function LoginPage() {
 
             <div className="auth-inline-note">
               <span>Credenciales seguras con JWT y acceso por roles.</span>
-              <a href="#recuperar">¿Olvidaste tu contrasena?</a>
+              <span className="auth-muted-note">Recuperacion no disponible aun.</span>
             </div>
 
             {status.message ? (
@@ -98,7 +100,7 @@ function LoginPage() {
           </form>
 
           <div className="auth-meta">
-            <span>¿Aun no tienes cuenta?</span>
+            <span>Aun no tienes cuenta?</span>
             <Link to="/register">Crear cuenta</Link>
           </div>
         </div>

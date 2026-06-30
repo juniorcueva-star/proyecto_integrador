@@ -16,3 +16,9 @@ export function togglePaymentMethod(id, active) {
     method: "PATCH",
   });
 }
+
+export function deletePaymentMethod(id) {
+  return apiRequest(`/metodos-pago/${id}`, {
+    method: "DELETE",
+  });
+}

@@ -12,10 +12,10 @@ import SellerProfilePage from "./pages/SellerProfilePage";
 import UserDashboardPage from "./pages/UserDashboardPage";
 import "./App.css";
 
-function AppLayout({ children }) {
+function AppLayout({ children, showHeader = true, headerMode = "default" }) {
   return (
     <div className="app-shell">
-      <SiteHeader />
+      {showHeader ? <SiteHeader mode={headerMode} /> : null}
       <main>{children}</main>
       <SiteFooter />
     </div>
@@ -37,7 +37,7 @@ function App() {
         <Route
           path="/login"
           element={
-            <AppLayout>
+            <AppLayout headerMode="auth">
               <LoginPage />
             </AppLayout>
           }
@@ -45,7 +45,7 @@ function App() {
         <Route
           path="/register"
           element={
-            <AppLayout>
+            <AppLayout headerMode="auth">
               <RegisterPage />
             </AppLayout>
           }
@@ -77,7 +77,7 @@ function App() {
         <Route
           path="/user"
           element={
-            <AppLayout>
+            <AppLayout showHeader={false}>
               <ProtectedRoute role="ROLE_USER">
                 <UserDashboardPage />
               </ProtectedRoute>
@@ -87,7 +87,7 @@ function App() {
         <Route
           path="/admin"
           element={
-            <AppLayout>
+            <AppLayout showHeader={false}>
               <ProtectedRoute role="ROLE_ADMIN">
                 <AdminDashboardPage />
               </ProtectedRoute>

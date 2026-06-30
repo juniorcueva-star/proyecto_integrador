@@ -1,13 +1,39 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { fetchCatalog } from "../api/prendas";
 import ProductCard from "../components/ProductCard";
 import {
   aiFeatures,
-  featuredProducts,
   steps,
   sustainabilityCards,
-} from "../data/mockData";
+} from "../data/staticData";
+import { adaptProducts } from "../utils/productAdapter";
 
 function LandingPage() {
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadFeaturedProducts() {
+      try {
+        const data = await fetchCatalog();
+        if (isMounted) {
+          setFeaturedProducts(adaptProducts(data).slice(0, 3));
+        }
+      } catch {
+        if (isMounted) {
+          setFeaturedProducts([]);
+        }
+      }
+    }
+
+    loadFeaturedProducts();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <>
       <section className="hero-section">
@@ -26,21 +52,6 @@ function LandingPage() {
             <Link to="/catalogo" className="button-secondary">
               Explorar catalogo
             </Link>
-          </div>
-
-          <div className="hero-metrics">
-            <article>
-              <strong>120K+</strong>
-              <span>prendas con segunda vida</span>
-            </article>
-            <article>
-              <strong>45K</strong>
-              <span>vendedores activos</span>
-            </article>
-            <article>
-              <strong>98%</strong>
-              <span>valoraciones positivas</span>
-            </article>
           </div>
         </div>
 
@@ -71,11 +82,18 @@ function LandingPage() {
           </Link>
         </div>
 
-        <div className="product-grid">
-          {featuredProducts.slice(0, 3).map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {featuredProducts.length ? (
+          <div className="product-grid">
+            {featuredProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <strong>Aun no hay prendas publicadas.</strong>
+            <p>Cuando existan publicaciones activas en el backend, apareceran aqui.</p>
+          </div>
+        )}
       </section>
 
       <section className="steps-section" id="como-funciona">

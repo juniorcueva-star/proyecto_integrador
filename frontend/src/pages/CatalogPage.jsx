@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react";
 import { fetchCatalog } from "../api/prendas";
 import ProductCard from "../components/ProductCard";
-import { featuredProducts } from "../data/mockData";
+import { garmentOptions } from "../data/staticData";
 import { adaptProducts } from "../utils/productAdapter";
 
 function CatalogPage() {
-  const [products, setProducts] = useState(featuredProducts);
+  const [products, setProducts] = useState([]);
+  const [filters, setFilters] = useState({
+    texto: "",
+    categoria: "",
+    precioMinimo: "",
+    precioMaximo: "",
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -14,14 +20,14 @@ function CatalogPage() {
 
     async function loadCatalog() {
       try {
-        const data = await fetchCatalog();
+        const data = await fetchCatalog(filters);
         if (!isMounted) return;
         setProducts(adaptProducts(data));
         setError("");
       } catch (loadError) {
         if (!isMounted) return;
-        setError("No se pudo cargar el catalogo real. Se muestran datos de referencia.");
-        setProducts(featuredProducts);
+        setError(loadError.message || "No se pudo cargar el catalogo.");
+        setProducts([]);
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -33,7 +39,12 @@ function CatalogPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [filters]);
+
+  function handleFilterChange(field, value) {
+    setLoading(true);
+    setFilters((current) => ({ ...current, [field]: value }));
+  }
 
   return (
     <section className="catalog-page">
@@ -46,32 +57,47 @@ function CatalogPage() {
         </p>
       </div>
 
-      <div className="catalog-toolbar">
-        <div className="toolbar-pill">Todos</div>
-        <div className="toolbar-pill">Chaquetas</div>
-        <div className="toolbar-pill">Vestidos</div>
-        <div className="toolbar-pill">Abrigos</div>
-        <div className="toolbar-pill">Intercambio</div>
-      </div>
-
       <div className="catalog-layout">
         <aside className="catalog-sidebar">
           <div className="sidebar-block">
             <h3>Buscar</h3>
-            <input type="text" placeholder="Nombre, marca o descripcion" />
+            <input
+              type="text"
+              placeholder="Nombre, marca o descripcion"
+              value={filters.texto}
+              onChange={(event) => handleFilterChange("texto", event.target.value)}
+            />
+          </div>
+          <div className="sidebar-block">
+            <h3>Categoria</h3>
+            <select
+              value={filters.categoria}
+              onChange={(event) => handleFilterChange("categoria", event.target.value)}
+            >
+              <option value="">Todas</option>
+              {garmentOptions.categorias.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="sidebar-block">
             <h3>Rango de precio</h3>
             <div className="price-range">
-              <input type="text" placeholder="Min" />
-              <input type="text" placeholder="Max" />
+              <input
+                type="number"
+                placeholder="Min"
+                value={filters.precioMinimo}
+                onChange={(event) => handleFilterChange("precioMinimo", event.target.value)}
+              />
+              <input
+                type="number"
+                placeholder="Max"
+                value={filters.precioMaximo}
+                onChange={(event) => handleFilterChange("precioMaximo", event.target.value)}
+              />
             </div>
-          </div>
-          <div className="sidebar-block">
-            <h3>Estado</h3>
-            <label><input type="checkbox" /> Disponible</label>
-            <label><input type="checkbox" /> Intercambio</label>
-            <label><input type="checkbox" /> Venta e intercambio</label>
           </div>
         </aside>
 
@@ -88,6 +114,12 @@ function CatalogPage() {
               <ProductCard key={product.id} product={product} />
             ))}
           </div>
+          {!loading && products.length === 0 ? (
+            <div className="empty-state">
+              <strong>No hay prendas para estos filtros.</strong>
+              <p>Cuando el backend tenga publicaciones activas, apareceran aqui.</p>
+            </div>
+          ) : null}
         </div>
       </div>
     </section>

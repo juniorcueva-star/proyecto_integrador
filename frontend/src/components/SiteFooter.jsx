@@ -20,23 +20,18 @@ function SiteFooter() {
         <div>
           <h3>Explorar</h3>
           <Link to="/catalogo">Catalogo</Link>
-          <Link to="/catalogo">Novedades</Link>
-          <Link to="/catalogo">Intercambios</Link>
           <Link to="/user">Estilo IA</Link>
         </div>
         <div>
           <h3>Comunidad</h3>
           <Link to="/user">Vender</Link>
-          <Link to="/vendedor/1">Perfiles</Link>
           <Link to="/#sostenibilidad">Sostenibilidad</Link>
-          <Link to="/">Blog</Link>
         </div>
         <div>
           <h3>Soporte</h3>
-          <Link to="/login">Centro de ayuda</Link>
-          <Link to="/login">Confianza y seguridad</Link>
-          <Link to="/login">Envios</Link>
-          <Link to="/login">Contacto</Link>
+          <Link to="/login">Entrar</Link>
+          <Link to="/register">Crear cuenta</Link>
+          <Link to="/user">Mis reclamos</Link>
         </div>
       </div>
     </footer>

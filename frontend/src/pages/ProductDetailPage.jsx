@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { fetchProductDetail } from "../api/prendas";
 import { fetchPublicProfile } from "../api/usuarios";
-import { paymentMethods, sellerReviews } from "../data/mockData";
 import { resolveBackendMedia } from "../utils/media";
 
 function ProductDetailPage() {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
   const [sellerProfile, setSellerProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -29,7 +29,11 @@ function ProductDetailPage() {
         setError("");
       } catch (loadError) {
         if (!isMounted) return;
-        setError("No se pudo cargar el detalle real. Se muestra una vista de referencia.");
+        setError(loadError.message || "No se pudo cargar el detalle de la prenda.");
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
 
@@ -40,12 +44,32 @@ function ProductDetailPage() {
   }, [id]);
 
   const detailImage = resolveBackendMedia(product?.imagenUrl);
-  const sellerPaymentMethods = sellerProfile?.metodosPago?.length
-    ? sellerProfile.metodosPago
-    : paymentMethods;
-  const sellerProfileReviews = sellerProfile?.resenasRecibidas?.length
-    ? sellerProfile.resenasRecibidas
-    : sellerReviews;
+  const sellerPaymentMethods = sellerProfile?.metodosPago || [];
+  const sellerProfileReviews = sellerProfile?.resenasRecibidas || [];
+
+  if (loading) {
+    return (
+      <section className="detail-page">
+        <div className="empty-state">
+          <strong>Cargando prenda...</strong>
+        </div>
+      </section>
+    );
+  }
+
+  if (!product) {
+    return (
+      <section className="detail-page">
+        <div className="empty-state">
+          <strong>No se pudo cargar esta prenda.</strong>
+          <p>{error}</p>
+          <Link to="/catalogo" className="button-primary">
+            Volver al catalogo
+          </Link>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="detail-page">
@@ -65,28 +89,24 @@ function ProductDetailPage() {
 
         <div className="detail-panel">
           <p className="section-kicker">Detalle de prenda</p>
-          <h1>{product?.nombre || "Trench de lana camel"}</h1>
+          <h1>{product.nombre}</h1>
           <p className="detail-lead">
-            {error ||
-              product?.descripcion ||
-              "Pieza atemporal para climas templados, en excelente estado y lista para venta o intercambio."}
+            {product.descripcion}
           </p>
 
           <div className="detail-meta-grid">
-            <div><strong>Marca</strong><span>{product?.marca || "Max Mara"}</span></div>
-            <div><strong>Talla</strong><span>{product?.talla || "M"}</span></div>
-            <div><strong>Color</strong><span>{product?.color || "Camel"}</span></div>
-            <div><strong>Estado</strong><span>{product?.estadoFisico || "Buen estado"}</span></div>
-            <div><strong>Tipo</strong><span>{product?.tipoPublicacion || "Venta e intercambio"}</span></div>
-            <div><strong>Precio</strong><span>{product ? `S/ ${product.precio}` : "S/ 140"}</span></div>
+            <div><strong>Marca</strong><span>{product.marca}</span></div>
+            <div><strong>Talla</strong><span>{product.talla}</span></div>
+            <div><strong>Color</strong><span>{product.color}</span></div>
+            <div><strong>Estado</strong><span>{product.estadoFisico}</span></div>
+            <div><strong>Tipo</strong><span>{product.tipoPublicacion}</span></div>
+            <div><strong>Precio</strong><span>S/ {product.precio}</span></div>
+            <div><strong>Contacto</strong><span>{product?.contacto || "No registrado"}</span></div>
           </div>
 
           <div className="detail-actions">
-            <Link to={`/vendedor/${product?.usuarioId || 1}`} className="button-primary">
+            <Link to={`/vendedor/${product?.usuarioId}`} className="button-primary">
               Ver vendedor
-            </Link>
-            <Link to="/user" className="button-secondary">
-              Comprar o contactar
             </Link>
           </div>
         </div>
@@ -96,20 +116,26 @@ function ProductDetailPage() {
         <article className="info-panel">
           <h2>Descripcion</h2>
           <p>
-            {product?.descripcion ||
-              "Trench estructurado con caida ligera, ideal para looks urbanos y de oficina. Conserva buena forma, tono uniforme y detalles bien cuidados en costuras, botones y cinturon."}
+            {product.descripcion}
           </p>
         </article>
 
         <article className="info-panel">
           <h2>Metodos de pago del vendedor</h2>
           <div className="payment-list">
-            {sellerPaymentMethods.map((method) => (
-              <div key={method.id || method.type || method.tipoMetodoPago} className="payment-item">
-                <strong>{method.type || method.tipoMetodoPago}</strong>
-                <span>{method.detail || method.numero || method.titular || "Activo"}</span>
+            {sellerPaymentMethods.length ? (
+              sellerPaymentMethods.map((method) => (
+                <div key={method.id || method.tipoMetodoPago} className="payment-item">
+                  <strong>{method.tipoMetodoPago}</strong>
+                  <span>{method.numero || method.titular || method.instrucciones || "Activo"}</span>
+                </div>
+              ))
+            ) : (
+              <div className="payment-item">
+                <strong>Sin metodos visibles</strong>
+                <span>Contacta al vendedor</span>
               </div>
-            ))}
+            )}
           </div>
         </article>
       </section>
@@ -123,16 +149,23 @@ function ProductDetailPage() {
         </div>
 
         <div className="review-grid">
-          {sellerProfileReviews.map((review) => (
-            <article
-              key={review.id || review.author || review.nombreAutor}
-              className="review-card"
-            >
-              <strong>{review.author || review.nombreAutor}</strong>
-              <span>{review.score || review.calificacion}</span>
-              <p>{review.text || review.comentario}</p>
+          {sellerProfileReviews.length ? (
+            sellerProfileReviews.map((review) => (
+              <article
+                key={review.id || review.nombreAutor}
+                className="review-card"
+              >
+                <strong>{review.nombreAutor}</strong>
+                <span>{review.calificacion}</span>
+                <p>{review.comentario}</p>
+              </article>
+            ))
+          ) : (
+            <article className="review-card">
+              <strong>Sin resenas todavia</strong>
+              <p>Este vendedor aun no tiene resenas registradas.</p>
             </article>
-          ))}
+          )}
         </div>
       </section>
     </section>
