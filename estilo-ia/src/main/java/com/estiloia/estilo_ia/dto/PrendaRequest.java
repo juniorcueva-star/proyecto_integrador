@@ -15,6 +15,10 @@ public record PrendaRequest(
 
         @NotBlank(message = "El nombre de la prenda es obligatorio")
         @Size(max = 120, message = "El nombre no debe superar los 120 caracteres")
+        @Pattern(
+                regexp = "^[\\p{L}]+(?:\\s+[\\p{L}]+)*$",
+                message = "El nombre de la prenda solo puede contener letras y espacios"
+        )
         String nombre,
 
         @NotBlank(message = "La descripcion es obligatoria")
@@ -46,6 +50,7 @@ public record PrendaRequest(
 
         @NotBlank(message = "El contacto es obligatorio")
         @Size(max = 30, message = "El contacto no debe superar los 30 caracteres")
+        @Pattern(regexp = "9\\d{8}", message = "El contacto debe empezar con 9 y tener 9 digitos")
         String contacto,
 
         @Size(max = 500, message = "La URL de imagen no debe superar los 500 caracteres")

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { registerRequest } from "../api/auth";
 import { steps } from "../data/staticData";
 import { persistAuthSession } from "../utils/authStorage";
+import { keepDigits, keepLettersAndSpaces } from "../utils/inputSanitizers";
 
 function RegisterPage() {
   const navigate = useNavigate();
@@ -15,13 +16,37 @@ function RegisterPage() {
   const [status, setStatus] = useState({ type: "", message: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  function validateRegisterForm() {
+    const normalizedName = form.nombre.trim().replace(/\s+/g, " ");
+
+    if (!/^[\p{L}]+(?:\s+[\p{L}]+)*$/u.test(normalizedName)) {
+      return "El nombre solo puede contener letras y espacios. No uses numeros, guiones ni caracteres especiales.";
+    }
+
+    if (!/^9\d{8}$/.test(form.telefono)) {
+      return "El celular debe empezar con 9 y tener exactamente 9 digitos.";
+    }
+
+    return "";
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
-    setIsSubmitting(true);
     setStatus({ type: "", message: "" });
 
+    const validationMessage = validateRegisterForm();
+    if (validationMessage) {
+      setStatus({ type: "error", message: validationMessage });
+      return;
+    }
+
+    setIsSubmitting(true);
+
     try {
-      const data = await registerRequest(form);
+      const data = await registerRequest({
+        ...form,
+        nombre: form.nombre.trim().replace(/\s+/g, " "),
+      });
       persistAuthSession(data);
       setStatus({ type: "success", message: "Cuenta creada correctamente." });
       navigate("/user");
@@ -72,19 +97,31 @@ function RegisterPage() {
                 placeholder="Tu nombre"
                 value={form.nombre}
                 onChange={(event) =>
-                  setForm((current) => ({ ...current, nombre: event.target.value }))
+                  setForm((current) => ({
+                    ...current,
+                    nombre: keepLettersAndSpaces(event.target.value),
+                  }))
                 }
+                pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]{3,60}"
+                title="Solo letras y espacios. No uses numeros, guiones ni caracteres especiales."
               />
             </label>
             <label>
               Celular
               <input
                 type="tel"
+                inputMode="numeric"
+                maxLength="9"
                 placeholder="999999999"
                 value={form.telefono}
                 onChange={(event) =>
-                  setForm((current) => ({ ...current, telefono: event.target.value }))
+                  setForm((current) => ({
+                    ...current,
+                    telefono: keepDigits(event.target.value, 9),
+                  }))
                 }
+                pattern="9[0-9]{8}"
+                title="Debe empezar con 9 y tener exactamente 9 digitos."
               />
             </label>
             <label className="full-span">

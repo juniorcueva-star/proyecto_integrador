@@ -5,6 +5,19 @@ import { fetchPublicProfile } from "../api/usuarios";
 import { resolveBackendMedia } from "../utils/media";
 import { formatPrice } from "../utils/productAdapter";
 
+function buildWhatsappLink(contactValue, productName) {
+  const digits = String(contactValue || "").replace(/\D/g, "");
+  const localPhone = digits.length === 11 && digits.startsWith("51") ? digits.slice(2) : digits;
+
+  if (!/^9\d{8}$/.test(localPhone)) return "";
+
+  const message = encodeURIComponent(
+    `Hola, estoy interesado en la prenda "${productName}". La vi en Estilo IA.`,
+  );
+
+  return `https://wa.me/51${localPhone}?text=${message}`;
+}
+
 function ProductDetailPage() {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
@@ -47,6 +60,10 @@ function ProductDetailPage() {
   const detailImage = resolveBackendMedia(product?.imagenUrl);
   const sellerPaymentMethods = sellerProfile?.metodosPago || [];
   const sellerProfileReviews = sellerProfile?.resenasRecibidas || [];
+  const whatsappLink = buildWhatsappLink(
+    product?.contacto || sellerProfile?.telefono,
+    product?.nombre || "esta prenda",
+  );
 
   if (loading) {
     return (
@@ -109,6 +126,16 @@ function ProductDetailPage() {
             <Link to={`/vendedor/${product?.usuarioId}`} className="button-primary">
               Ver vendedor
             </Link>
+            {whatsappLink ? (
+              <a
+                href={whatsappLink}
+                className="button-secondary button-whatsapp"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Contactame ahora
+              </a>
+            ) : null}
           </div>
         </div>
       </div>

@@ -188,6 +188,17 @@
   border-color: var(--olive);
 }
 
+.button-whatsapp {
+  border-color: rgba(37, 133, 77, 0.34);
+  background: rgba(37, 133, 77, 0.1);
+  color: #1f6b43;
+}
+
+.button-whatsapp:hover {
+  border-color: #1f8f55;
+  color: #155f3a;
+}
+
 .ghost-button {
   border: none;
   background: transparent;
@@ -802,10 +813,21 @@
   position: relative;
   min-height: 44rem;
   background:
-    linear-gradient(180deg, rgba(31, 54, 34, 0.06), rgba(39, 33, 28, 0.14)),
+    linear-gradient(90deg, rgba(47, 41, 36, 0.2) 0%, rgba(47, 41, 36, 0) 26%),
+    linear-gradient(180deg, rgba(31, 54, 34, 0.03), rgba(39, 33, 28, 0.1)),
     url("./assets/estilo-ia-shopping.png");
-  background-position: center;
+  background-position: center center;
   background-size: cover;
+}
+
+.ai-visual::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(47, 41, 36, 0.72), transparent 22%),
+    radial-gradient(circle at 58% 45%, rgba(255, 226, 175, 0.08), transparent 18rem);
+  pointer-events: none;
 }
 
 .ai-closet {
@@ -1354,8 +1376,12 @@
   padding: 1.6rem 1.75rem;
   border: 1px solid var(--border-soft);
   border-radius: 1.5rem;
-  background: rgba(255, 253, 248, 0.76);
-  box-shadow: 0 18px 40px rgba(71, 61, 46, 0.05);
+  background:
+    radial-gradient(circle at top right, rgba(97, 112, 72, 0.08), transparent 18rem),
+    rgba(255, 253, 248, 0.8);
+  box-shadow:
+    0 18px 40px rgba(71, 61, 46, 0.05),
+    0 1px 0 rgba(255, 255, 255, 0.8) inset;
 }
 
 .user-dashboard-top h2 {
@@ -1443,6 +1469,134 @@
   margin-top: 1.5rem;
 }
 
+.wardrobe-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+.wardrobe-card {
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  border-radius: 1.6rem;
+  background: rgba(255, 253, 248, 0.78);
+  box-shadow:
+    0 18px 40px rgba(71, 61, 46, 0.06),
+    0 1px 0 rgba(255, 255, 255, 0.72) inset;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.wardrobe-card:hover {
+  border-color: rgba(97, 112, 72, 0.26);
+  box-shadow:
+    0 24px 56px rgba(71, 61, 46, 0.11),
+    0 1px 0 rgba(255, 255, 255, 0.82) inset;
+  transform: translateY(-2px);
+}
+
+.wardrobe-card-media {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 18rem;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(97, 112, 72, 0.12), transparent 16rem),
+    linear-gradient(180deg, #eef2ec, #e5ddd1);
+  background-position: center;
+  background-size: cover;
+  color: var(--olive-strong);
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.wardrobe-card-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(22, 30, 20, 0.02), rgba(22, 30, 20, 0.1));
+  pointer-events: none;
+}
+
+.wardrobe-card-media strong {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  min-height: 2rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  background: var(--olive);
+  color: var(--cream);
+  font-size: 0.92rem;
+  box-shadow: 0 12px 24px rgba(42, 56, 34, 0.18);
+}
+
+.wardrobe-card-body {
+  padding: 1.25rem;
+}
+
+.wardrobe-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.wardrobe-card-head span {
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.wardrobe-card-head h3 {
+  margin: 0.35rem 0 0;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 1.45rem;
+  line-height: 1.15;
+}
+
+.wardrobe-card-head > strong {
+  color: var(--ink);
+  font-size: 1.25rem;
+  white-space: nowrap;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(97, 112, 72, 0.1);
+}
+
+.wardrobe-card-body p {
+  margin: 0.55rem 0 0;
+  color: var(--text-soft);
+}
+
+.wardrobe-actions {
+  margin-top: 1rem;
+}
+
+.wardrobe-edit-form {
+  padding: 1.25rem;
+  border-top: 1px solid var(--border-soft);
+  background:
+    linear-gradient(180deg, rgba(255, 253, 248, 0.92), rgba(248, 244, 236, 0.76));
+}
+
+.wardrobe-edit-form .module-form-grid {
+  gap: 1rem 1.15rem;
+}
+
+.wardrobe-edit-form .button-row {
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.wardrobe-empty-card {
+  grid-column: 1 / -1;
+}
+
 .catalog-filter-form {
   display: grid;
   grid-template-columns: minmax(16rem, 1.4fr) repeat(3, minmax(9rem, 1fr)) auto;
@@ -1452,7 +1606,9 @@
   padding: 1rem;
   border: 1px solid var(--border-soft);
   border-radius: 1.25rem;
-  background: rgba(255, 255, 255, 0.48);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.66), rgba(248, 244, 236, 0.5));
+  box-shadow: 0 16px 34px rgba(71, 61, 46, 0.05);
 }
 
 .catalog-filter-form label {
@@ -1470,6 +1626,18 @@
   border-radius: 1rem;
   background: rgba(255, 255, 255, 0.85);
   font: inherit;
+  outline: none;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+}
+
+.catalog-filter-form input:focus,
+.catalog-filter-form select:focus {
+  border-color: rgba(97, 112, 72, 0.64);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(97, 112, 72, 0.12);
 }
 
 .catalog-filter-actions {
@@ -1571,12 +1739,16 @@
   border: 1px solid var(--border-soft);
   border-radius: 1.75rem;
   background: rgba(255, 253, 248, 0.72);
-  box-shadow: 0 18px 40px rgba(71, 61, 46, 0.04);
+  box-shadow:
+    0 18px 40px rgba(71, 61, 46, 0.04),
+    0 1px 0 rgba(255, 255, 255, 0.78) inset;
 }
 
 .catalog-sidebar {
   align-self: start;
   padding: 1.2rem;
+  position: sticky;
+  top: 1.25rem;
 }
 
 .sidebar-block + .sidebar-block {
@@ -1599,9 +1771,10 @@
   border: 1px solid var(--border-strong);
   border-radius: 1rem;
   background: rgba(255, 255, 255, 0.8);
+  outline: none;
 }
 
-.sidebar-block input[type="number"],
+.sidebar-block input[inputmode="decimal"],
 .sidebar-block select {
   width: 100%;
   min-height: 3rem;
@@ -1610,6 +1783,14 @@
   border-radius: 1rem;
   background: rgba(255, 255, 255, 0.8);
   font: inherit;
+  outline: none;
+}
+
+.sidebar-block input:focus,
+.sidebar-block select:focus {
+  border-color: rgba(97, 112, 72, 0.62);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(97, 112, 72, 0.12);
 }
 
 .sidebar-block label {
@@ -1621,6 +1802,20 @@
 
 .sidebar-block label + label {
   margin-top: 0.65rem;
+}
+
+.sidebar-actions {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.15rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-soft);
+}
+
+.sidebar-actions .button-primary,
+.sidebar-actions .button-secondary {
+  width: 100%;
+  min-height: 3rem;
 }
 
 .price-range {
@@ -1639,6 +1834,8 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 1rem 1.25rem;
+  background:
+    linear-gradient(90deg, rgba(255, 253, 248, 0.9), rgba(248, 244, 236, 0.64));
 }
 
 .catalog-summary strong {
@@ -1665,10 +1862,14 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 2rem;
   padding: 1.5rem;
+  background:
+    radial-gradient(circle at 12% 12%, rgba(97, 112, 72, 0.07), transparent 18rem),
+    rgba(255, 253, 248, 0.74);
 }
 
 .detail-media {
   min-height: 35rem;
+  border-radius: 1.5rem;
 }
 
 .detail-panel {
@@ -1688,6 +1889,7 @@
   padding: 1rem;
   border: 1px solid var(--border-soft);
   border-radius: 1.25rem;
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .detail-meta-grid strong {
@@ -1968,10 +2170,22 @@
 .mini-action {
   border: 1px solid var(--border-strong);
   border-radius: 999px;
-  background: transparent;
+  background: rgba(255, 253, 248, 0.68);
   color: var(--olive);
   font-weight: 700;
   padding: 0.7rem 1rem;
+  cursor: pointer;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.mini-action:hover {
+  border-color: rgba(97, 112, 72, 0.55);
+  background: rgba(97, 112, 72, 0.12);
+  transform: translateY(-1px);
 }
 
 .mini-actions {
@@ -1995,6 +2209,12 @@
   color: #8f3d25;
 }
 
+.mini-action-danger:hover {
+  border-color: rgba(143, 61, 37, 0.36);
+  background: rgba(189, 78, 50, 0.1);
+  color: #7b321d;
+}
+
 .chip-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2011,17 +2231,20 @@
   font-weight: 600;
 }
 
-.module-form {
+.module-form,
+.wardrobe-edit-form {
   margin-top: 1.25rem;
 }
 
-.module-form-grid {
+.module-form-grid,
+.wardrobe-edit-form .module-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
 }
 
-.module-form label {
+.module-form label,
+.wardrobe-edit-form label {
   display: grid;
   gap: 0.55rem;
   color: var(--ink);
@@ -2030,7 +2253,10 @@
 
 .module-form input,
 .module-form select,
-.module-form textarea {
+.module-form textarea,
+.wardrobe-edit-form input,
+.wardrobe-edit-form select,
+.wardrobe-edit-form textarea {
   width: 100%;
   min-height: 3.1rem;
   padding: 0.85rem 1rem;
@@ -2038,11 +2264,34 @@
   border-radius: 1rem;
   background: rgba(255, 255, 255, 0.82);
   font: inherit;
+  outline: none;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
 }
 
-.module-form textarea {
+.module-form input:focus,
+.module-form select:focus,
+.module-form textarea:focus,
+.wardrobe-edit-form input:focus,
+.wardrobe-edit-form select:focus,
+.wardrobe-edit-form textarea:focus {
+  border-color: rgba(97, 112, 72, 0.64);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(97, 112, 72, 0.12);
+}
+
+.module-form textarea,
+.wardrobe-edit-form textarea {
   min-height: 7rem;
   resize: vertical;
+}
+
+.module-form input[type="file"],
+.wardrobe-edit-form input[type="file"] {
+  padding: 0.65rem;
+  background: rgba(255, 253, 248, 0.94);
 }
 
 .file-helper {
@@ -2126,6 +2375,7 @@
 
   .user-ia-intro,
   .user-dashboard-products,
+  .wardrobe-grid,
   .user-summary-grid {
     grid-template-columns: 1fr;
   }

@@ -10,7 +10,7 @@ public record RegistroRequest(
         @NotBlank(message = "El nombre es obligatorio")
         @Size(min = 3, max = 60, message = "El nombre debe tener entre 3 y 60 caracteres")
         @Pattern(
-                regexp = "^[A-Za-z]+(?:\\s+[A-Za-z]+)*$",
+                regexp = "^[\\p{L}]+(?:\\s+[\\p{L}]+)*$",
                 message = "El nombre solo puede contener letras y espacios"
         )
         String nombre,

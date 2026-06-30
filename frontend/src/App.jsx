@@ -53,7 +53,7 @@ function App() {
         <Route
           path="/catalogo"
           element={
-            <AppLayout>
+            <AppLayout headerMode="compact">
               <CatalogPage />
             </AppLayout>
           }

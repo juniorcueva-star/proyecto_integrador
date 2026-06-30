@@ -55,7 +55,7 @@ public class Usuario implements UserDetails {
     /**
      * Telefono o WhatsApp del usuario.
      */
-    @Column(nullable = false, length = 9)
+    @Column(nullable = false, unique = true, length = 9)
     private String telefono;
 
     /**

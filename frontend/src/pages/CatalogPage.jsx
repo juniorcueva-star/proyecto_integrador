@@ -2,16 +2,18 @@ import { useEffect, useState } from "react";
 import { fetchCatalog } from "../api/prendas";
 import ProductCard from "../components/ProductCard";
 import { garmentOptions } from "../data/staticData";
+import { keepDecimal, keepLettersAndSpaces } from "../utils/inputSanitizers";
 import { adaptProducts } from "../utils/productAdapter";
 
 function CatalogPage() {
   const [products, setProducts] = useState([]);
-  const [filters, setFilters] = useState({
+  const [filterForm, setFilterForm] = useState({
     texto: "",
     categoria: "",
     precioMinimo: "",
     precioMaximo: "",
   });
+  const [activeFilters, setActiveFilters] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -20,7 +22,7 @@ function CatalogPage() {
 
     async function loadCatalog() {
       try {
-        const data = await fetchCatalog(filters);
+        const data = await fetchCatalog(activeFilters);
         if (!isMounted) return;
         setProducts(adaptProducts(data));
         setError("");
@@ -39,11 +41,53 @@ function CatalogPage() {
     return () => {
       isMounted = false;
     };
-  }, [filters]);
+  }, [activeFilters]);
 
   function handleFilterChange(field, value) {
+    const cleanValue =
+      field === "texto"
+        ? keepLettersAndSpaces(value)
+        : field === "precioMinimo" || field === "precioMaximo"
+          ? keepDecimal(value)
+          : value;
+
+    setFilterForm((current) => ({ ...current, [field]: cleanValue }));
+  }
+
+  function handleApplyFilters(event) {
+    event.preventDefault();
+    const min = filterForm.precioMinimo ? Number(filterForm.precioMinimo) : null;
+    const max = filterForm.precioMaximo ? Number(filterForm.precioMaximo) : null;
+
+    if ((min !== null && min < 1) || (max !== null && max < 1)) {
+      setError("El precio minimo y maximo deben ser al menos S/ 1.");
+      return;
+    }
+
+    if (min !== null && max !== null && min > max) {
+      setError("El precio minimo no puede ser mayor que el precio maximo.");
+      return;
+    }
+
     setLoading(true);
-    setFilters((current) => ({ ...current, [field]: value }));
+    setActiveFilters({
+      texto: filterForm.texto.trim(),
+      categoria: filterForm.categoria,
+      precioMinimo: filterForm.precioMinimo,
+      precioMaximo: filterForm.precioMaximo,
+    });
+  }
+
+  function handleClearFilters() {
+    setFilterForm({
+      texto: "",
+      categoria: "",
+      precioMinimo: "",
+      precioMaximo: "",
+    });
+    setLoading(true);
+    setError("");
+    setActiveFilters({});
   }
 
   return (
@@ -58,20 +102,20 @@ function CatalogPage() {
       </div>
 
       <div className="catalog-layout">
-        <aside className="catalog-sidebar">
+        <form className="catalog-sidebar" onSubmit={handleApplyFilters}>
           <div className="sidebar-block">
             <h3>Buscar</h3>
             <input
               type="text"
               placeholder="Nombre, marca o descripcion"
-              value={filters.texto}
+              value={filterForm.texto}
               onChange={(event) => handleFilterChange("texto", event.target.value)}
             />
           </div>
           <div className="sidebar-block">
             <h3>Categoria</h3>
             <select
-              value={filters.categoria}
+              value={filterForm.categoria}
               onChange={(event) => handleFilterChange("categoria", event.target.value)}
             >
               <option value="">Todas</option>
@@ -86,20 +130,30 @@ function CatalogPage() {
             <h3>Rango de precio</h3>
             <div className="price-range">
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 placeholder="Min"
-                value={filters.precioMinimo}
+                value={filterForm.precioMinimo}
                 onChange={(event) => handleFilterChange("precioMinimo", event.target.value)}
               />
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 placeholder="Max"
-                value={filters.precioMaximo}
+                value={filterForm.precioMaximo}
                 onChange={(event) => handleFilterChange("precioMaximo", event.target.value)}
               />
             </div>
           </div>
-        </aside>
+          <div className="sidebar-actions">
+            <button type="submit" className="button-primary">
+              Buscar
+            </button>
+            <button type="button" className="button-secondary" onClick={handleClearFilters}>
+              Limpiar
+            </button>
+          </div>
+        </form>
 
         <div className="catalog-content">
           <div className="catalog-summary">

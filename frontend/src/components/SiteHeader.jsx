@@ -4,7 +4,7 @@ import { clearAuthSession, getAuthSession } from "../utils/authStorage";
 function SiteHeader({ mode = "default" }) {
   const navigate = useNavigate();
   const session = getAuthSession();
-  const showCompactNav = mode === "auth";
+  const showCompactNav = mode === "auth" || mode === "compact";
 
   function handleLogout() {
     clearAuthSession();
@@ -13,7 +13,7 @@ function SiteHeader({ mode = "default" }) {
   }
 
   return (
-    <header className={`topbar ${showCompactNav ? "topbar-auth" : ""}`}>
+    <header className={`topbar ${mode === "auth" ? "topbar-auth" : ""}`}>
       <NavLink to="/" className="brand brand-link">
         <div className="brand-mark">E</div>
         <div className="brand-text">

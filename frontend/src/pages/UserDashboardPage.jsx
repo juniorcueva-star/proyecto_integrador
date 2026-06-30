@@ -18,6 +18,8 @@ import {
   deleteProduct,
   fetchCatalog,
   fetchOwnProducts,
+  updateProduct,
+  updateProductImage,
   updateProductStatus,
 } from "../api/prendas";
 import { createClaim, fetchOwnClaims } from "../api/reclamos";
@@ -25,6 +27,8 @@ import { fetchOwnProfile } from "../api/usuarios";
 import ProductCard from "../components/ProductCard";
 import { garmentOptions } from "../data/staticData";
 import { clearAuthSession } from "../utils/authStorage";
+import { keepDecimal, keepDigits, keepLettersAndSpaces } from "../utils/inputSanitizers";
+import { resolveBackendMedia } from "../utils/media";
 import { adaptProduct, adaptProducts } from "../utils/productAdapter";
 
 const sidebarItems = [
@@ -57,6 +61,8 @@ function UserDashboardPage() {
   const [claimStatus, setClaimStatus] = useState({ type: "", message: "" });
   const [aiStatus, setAiStatus] = useState({ type: "", message: "" });
   const [aiResult, setAiResult] = useState(null);
+  const [editingProductId, setEditingProductId] = useState(null);
+  const [editProductForm, setEditProductForm] = useState(null);
   const [productForm, setProductForm] = useState({
     nombre: "",
     descripcion: "",
@@ -211,6 +217,20 @@ function UserDashboardPage() {
 
   function handleCatalogSearch(event) {
     event.preventDefault();
+    const min = catalogFilters.precioMinimo ? Number(catalogFilters.precioMinimo) : null;
+    const max = catalogFilters.precioMaximo ? Number(catalogFilters.precioMaximo) : null;
+
+    if ((min !== null && min < 1) || (max !== null && max < 1)) {
+      setDashboardError("El precio minimo y maximo deben ser al menos S/ 1.");
+      return;
+    }
+
+    if (min !== null && max !== null && min > max) {
+      setDashboardError("El precio minimo no puede ser mayor que el precio maximo.");
+      return;
+    }
+
+    setDashboardError("");
     setActiveCatalogFilters({
       texto: catalogFilters.texto.trim(),
       categoria: catalogFilters.categoria,
@@ -331,6 +351,68 @@ function UserDashboardPage() {
       await deleteProduct(id);
       setOwnProducts((current) => current.filter((item) => item.id !== id));
       setProductStatus({ type: "success", message: "Prenda eliminada correctamente." });
+    } catch (error) {
+      setProductStatus({ type: "error", message: error.message });
+    }
+  }
+
+  function handleStartEditProduct(product) {
+    setEditingProductId(product.id);
+    setEditProductForm({
+      nombre: product.nombre || product.name || "",
+      descripcion: product.descripcion || "",
+      marca: product.marca || product.brand || "",
+      color: product.color || "",
+      talla: product.talla || product.size || "M",
+      categoria: product.categoria || product.category || "POLO",
+      estadoFisico: product.estadoFisico || "BUEN_ESTADO",
+      precio: product.precio !== undefined && product.precio !== null ? String(product.precio) : "",
+      tipoPublicacion: product.tipoPublicacion || "VENTA",
+      contacto: product.contacto || "",
+      imagen: null,
+      imagenUrl: product.imagenUrl || "",
+    });
+    setProductStatus({ type: "", message: "" });
+  }
+
+  function handleCancelEditProduct() {
+    setEditingProductId(null);
+    setEditProductForm(null);
+  }
+
+  async function handleUpdateProduct(event) {
+    event.preventDefault();
+    if (!editingProductId || !editProductForm) return;
+
+    setProductStatus({ type: "", message: "" });
+
+    try {
+      const payload = {
+        nombre: editProductForm.nombre,
+        descripcion: editProductForm.descripcion,
+        marca: editProductForm.marca,
+        color: editProductForm.color,
+        talla: editProductForm.talla,
+        categoria: editProductForm.categoria,
+        estadoFisico: editProductForm.estadoFisico,
+        precio: Number(editProductForm.precio || 0),
+        tipoPublicacion: editProductForm.tipoPublicacion,
+        contacto: editProductForm.contacto,
+        imagenUrl: editProductForm.imagenUrl,
+      };
+
+      const updatedProduct = await updateProduct(editingProductId, payload);
+      const finalProduct = editProductForm.imagen
+        ? await updateProductImage(editingProductId, editProductForm.imagen)
+        : updatedProduct;
+
+      setOwnProducts((current) =>
+        current.map((item) =>
+          item.id === editingProductId ? adaptProduct(finalProduct) : item,
+        ),
+      );
+      setProductStatus({ type: "success", message: "Prenda actualizada correctamente." });
+      handleCancelEditProduct();
     } catch (error) {
       setProductStatus({ type: "error", message: error.message });
     }
@@ -537,7 +619,10 @@ function UserDashboardPage() {
                     placeholder="Nombre, marca o descripcion"
                     value={catalogFilters.texto}
                     onChange={(event) =>
-                      setCatalogFilters((current) => ({ ...current, texto: event.target.value }))
+                      setCatalogFilters((current) => ({
+                        ...current,
+                        texto: keepLettersAndSpaces(event.target.value),
+                      }))
                     }
                   />
                 </label>
@@ -560,13 +645,13 @@ function UserDashboardPage() {
                 <label>
                   Precio minimo
                   <input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="decimal"
                     value={catalogFilters.precioMinimo}
                     onChange={(event) =>
                       setCatalogFilters((current) => ({
                         ...current,
-                        precioMinimo: event.target.value,
+                        precioMinimo: keepDecimal(event.target.value),
                       }))
                     }
                   />
@@ -574,13 +659,13 @@ function UserDashboardPage() {
                 <label>
                   Precio maximo
                   <input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="decimal"
                     value={catalogFilters.precioMaximo}
                     onChange={(event) =>
                       setCatalogFilters((current) => ({
                         ...current,
-                        precioMaximo: event.target.value,
+                        precioMaximo: keepDecimal(event.target.value),
                       }))
                     }
                   />
@@ -876,9 +961,9 @@ function UserDashboardPage() {
 
             {renderStatusMessage(productStatus)}
 
-            <div className="mini-list">
+            <div className="wardrobe-grid">
               {ownProducts.length === 0 ? (
-                <article className="mini-item">
+                <article className="mini-item wardrobe-empty-card">
                   <div>
                     <strong>Aun no tienes prendas</strong>
                     <p>Publica una prenda desde la seccion Agregar prenda.</p>
@@ -887,50 +972,264 @@ function UserDashboardPage() {
                 </article>
               ) : (
                 ownProducts.map((product) => (
-                  <article key={product.id} className="mini-item mini-item-stack">
-                    <div>
-                      <strong>{product.name || product.nombre}</strong>
-                      <p>
-                        {product.category} - {product.size} - {product.status}
-                      </p>
+                  <article key={product.id} className="wardrobe-card">
+                    <div
+                      className="wardrobe-card-media"
+                      style={
+                        resolveBackendMedia(product.imagenUrl)
+                          ? {
+                              backgroundImage: `linear-gradient(rgba(38, 50, 34, 0.08), rgba(38, 31, 24, 0.12)), url("${resolveBackendMedia(product.imagenUrl)}")`,
+                            }
+                          : undefined
+                      }
+                    >
+                      {!resolveBackendMedia(product.imagenUrl) ? <span>Sin imagen</span> : null}
+                      <strong>{product.status}</strong>
                     </div>
-                    <div className="mini-actions">
-                      <button
-                        type="button"
-                        className="mini-action"
-                        onClick={() => handleProductAction(product.id, "pausar", "Prenda pausada.")}
-                      >
-                        Pausar
-                      </button>
-                      <button
-                        type="button"
-                        className="mini-action"
-                        onClick={() => handleProductAction(product.id, "publicar", "Prenda publicada.")}
-                      >
-                        Publicar
-                      </button>
-                      <button
-                        type="button"
-                        className="mini-action"
-                        onClick={() => handleProductAction(product.id, "vendida", "Prenda marcada como vendida.")}
-                      >
-                        Vendida
-                      </button>
-                      <button
-                        type="button"
-                        className="mini-action"
-                        onClick={() => handleProductAction(product.id, "intercambiada", "Prenda marcada como intercambiada.")}
-                      >
-                        Intercambiada
-                      </button>
-                      <button
-                        type="button"
-                        className="mini-action mini-action-danger"
-                        onClick={() => handleDeleteProduct(product.id)}
-                      >
-                        Eliminar
-                      </button>
+
+                    <div className="wardrobe-card-body">
+                      <div className="wardrobe-card-head">
+                        <div>
+                          <span>{product.category}</span>
+                          <h3>{product.name || product.nombre}</h3>
+                        </div>
+                        <strong>{product.price}</strong>
+                      </div>
+                      <p>{product.brand || "Sin marca"} - Talla {product.size}</p>
+                      <p>{product.color || "Color no registrado"} - {product.estadoFisico}</p>
+
+                      <div className="mini-actions wardrobe-actions">
+                        <button
+                          type="button"
+                          className="mini-action"
+                          onClick={() => handleStartEditProduct(product)}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          className="mini-action"
+                          onClick={() => handleProductAction(product.id, "pausar", "Prenda pausada.")}
+                        >
+                          Pausar
+                        </button>
+                        <button
+                          type="button"
+                          className="mini-action"
+                          onClick={() => handleProductAction(product.id, "publicar", "Prenda publicada.")}
+                        >
+                          Publicar
+                        </button>
+                        <button
+                          type="button"
+                          className="mini-action"
+                          onClick={() => handleProductAction(product.id, "vendida", "Prenda marcada como vendida.")}
+                        >
+                          Vendida
+                        </button>
+                        <button
+                          type="button"
+                          className="mini-action"
+                          onClick={() => handleProductAction(product.id, "intercambiada", "Prenda marcada como intercambiada.")}
+                        >
+                          Intercambiada
+                        </button>
+                        <button
+                          type="button"
+                          className="mini-action mini-action-danger"
+                          onClick={() => handleDeleteProduct(product.id)}
+                        >
+                          Eliminar
+                        </button>
+                      </div>
                     </div>
+
+                    {editingProductId === product.id && editProductForm ? (
+                      <form className="wardrobe-edit-form" onSubmit={handleUpdateProduct}>
+                        <div className="module-form-grid">
+                          <label>
+                            Nombre
+                            <input
+                              value={editProductForm.nombre}
+                              onChange={(event) =>
+                                setEditProductForm((current) => ({
+                                  ...current,
+                                  nombre: keepLettersAndSpaces(event.target.value),
+                                }))
+                              }
+                            />
+                          </label>
+                          <label>
+                            Marca
+                            <input
+                              value={editProductForm.marca}
+                              onChange={(event) =>
+                                setEditProductForm((current) => ({
+                                  ...current,
+                                  marca: event.target.value,
+                                }))
+                              }
+                            />
+                          </label>
+                          <label className="full-span">
+                            Descripcion
+                            <textarea
+                              rows="3"
+                              value={editProductForm.descripcion}
+                              onChange={(event) =>
+                                setEditProductForm((current) => ({
+                                  ...current,
+                                  descripcion: event.target.value,
+                                }))
+                              }
+                            />
+                          </label>
+                          <label>
+                            Color
+                            <input
+                              value={editProductForm.color}
+                              onChange={(event) =>
+                                setEditProductForm((current) => ({
+                                  ...current,
+                                  color: event.target.value,
+                                }))
+                              }
+                            />
+                          </label>
+                          <label>
+                            Contacto
+                            <input
+                              inputMode="numeric"
+                              maxLength="9"
+                              value={editProductForm.contacto}
+                              onChange={(event) =>
+                                setEditProductForm((current) => ({
+                                  ...current,
+                                  contacto: keepDigits(event.target.value, 9),
+                                }))
+                              }
+                            />
+                          </label>
+                          <label>
+                            Talla
+                            <select
+                              value={editProductForm.talla}
+                              onChange={(event) =>
+                                setEditProductForm((current) => ({
+                                  ...current,
+                                  talla: event.target.value,
+                                }))
+                              }
+                            >
+                              {garmentOptions.tallas.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            Categoria
+                            <select
+                              value={editProductForm.categoria}
+                              onChange={(event) =>
+                                setEditProductForm((current) => ({
+                                  ...current,
+                                  categoria: event.target.value,
+                                }))
+                              }
+                            >
+                              {garmentOptions.categorias.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            Estado fisico
+                            <select
+                              value={editProductForm.estadoFisico}
+                              onChange={(event) =>
+                                setEditProductForm((current) => ({
+                                  ...current,
+                                  estadoFisico: event.target.value,
+                                }))
+                              }
+                            >
+                              {garmentOptions.estadosFisicos.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            Tipo publicacion
+                            <select
+                              value={editProductForm.tipoPublicacion}
+                              onChange={(event) =>
+                                setEditProductForm((current) => ({
+                                  ...current,
+                                  tipoPublicacion: event.target.value,
+                                }))
+                              }
+                            >
+                              {garmentOptions.tiposPublicacion.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            Precio
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={editProductForm.precio}
+                              onChange={(event) =>
+                                setEditProductForm((current) => ({
+                                  ...current,
+                                  precio: keepDecimal(event.target.value),
+                                }))
+                              }
+                            />
+                          </label>
+                          <label className="full-span">
+                            Cambiar imagen
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg,image/jpg,image/webp"
+                              onChange={(event) =>
+                                setEditProductForm((current) => ({
+                                  ...current,
+                                  imagen: event.target.files?.[0] || null,
+                                }))
+                              }
+                            />
+                            <span className="file-helper">
+                              {editProductForm.imagen
+                                ? `Nueva imagen: ${editProductForm.imagen.name}`
+                                : "Opcional. Si no seleccionas una nueva imagen, se mantiene la actual."}
+                            </span>
+                          </label>
+                        </div>
+
+                        <div className="button-row">
+                          <button type="submit" className="button-primary module-submit">
+                            Guardar cambios
+                          </button>
+                          <button
+                            type="button"
+                            className="button-secondary"
+                            onClick={handleCancelEditProduct}
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </form>
+                    ) : null}
                   </article>
                 ))
               )}
@@ -952,7 +1251,10 @@ function UserDashboardPage() {
                   <input
                     value={productForm.nombre}
                     onChange={(event) =>
-                      setProductForm((current) => ({ ...current, nombre: event.target.value }))
+                      setProductForm((current) => ({
+                        ...current,
+                        nombre: keepLettersAndSpaces(event.target.value),
+                      }))
                     }
                   />
                 </label>
@@ -990,9 +1292,14 @@ function UserDashboardPage() {
                 <label>
                   Contacto
                   <input
+                    inputMode="numeric"
+                    maxLength="9"
                     value={productForm.contacto}
                     onChange={(event) =>
-                      setProductForm((current) => ({ ...current, contacto: event.target.value }))
+                      setProductForm((current) => ({
+                        ...current,
+                        contacto: keepDigits(event.target.value, 9),
+                      }))
                     }
                   />
                 </label>
@@ -1068,11 +1375,14 @@ function UserDashboardPage() {
                 <label>
                   Precio
                   <input
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={productForm.precio}
                     onChange={(event) =>
-                      setProductForm((current) => ({ ...current, precio: event.target.value }))
+                      setProductForm((current) => ({
+                        ...current,
+                        precio: keepDecimal(event.target.value),
+                      }))
                     }
                   />
                 </label>

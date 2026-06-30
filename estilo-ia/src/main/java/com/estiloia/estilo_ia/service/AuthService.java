@@ -40,6 +40,9 @@ public class AuthService {
         if (usuarioRepository.existsByEmail(emailNormalizado)) {
             throw new IllegalArgumentException("Ya existe una cuenta registrada con ese email");
         }
+        if (usuarioRepository.existsByTelefono(telefonoNormalizado)) {
+            throw new IllegalArgumentException("Ya existe una cuenta registrada con ese celular");
+        }
 
         Usuario usuario = Usuario.builder()
                 .nombre(nombreNormalizado)
@@ -99,7 +102,7 @@ public class AuthService {
 
     private String normalizarNombre(String nombre) {
         String valor = nombre == null ? "" : nombre.trim().replaceAll("\\s+", " ");
-        if (!valor.matches("^[A-Za-z]+(?:\\s+[A-Za-z]+)*$")) {
+        if (!valor.matches("^[\\p{L}]+(?:\\s+[\\p{L}]+)*$")) {
             throw new IllegalArgumentException("El nombre solo puede contener letras y espacios");
         }
         if (valor.length() < 3 || valor.length() > 60) {

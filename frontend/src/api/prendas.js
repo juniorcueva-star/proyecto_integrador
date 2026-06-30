@@ -48,6 +48,16 @@ export function updateProduct(id, payload) {
   });
 }
 
+export function updateProductImage(id, imageFile) {
+  const formData = new FormData();
+  formData.append("imagen", imageFile);
+
+  return apiRequest(`/prendas/${id}/imagen`, {
+    method: "PATCH",
+    body: formData,
+  });
+}
+
 export function deleteProduct(id) {
   return apiRequest(`/prendas/${id}`, {
     method: "DELETE",

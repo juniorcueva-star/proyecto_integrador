@@ -25,7 +25,7 @@ public class PrendaService {
     private final ImagenService imagenService;
 
     public PrendaResponse crearPrenda(PrendaRequest request, Usuario usuario) {
-        validarPrecio(request.precio());
+        validarDatosPrenda(request);
         Prenda prenda = construirPrenda(request, usuario, request.imagenUrl());
         return PrendaResponse.desdeEntidad(prendaRepository.save(prenda));
     }
@@ -44,7 +44,6 @@ public class PrendaService {
             MultipartFile imagen,
             Usuario usuario
     ) {
-        validarPrecio(precio);
         String imagenUrl = imagenService.guardarImagen(imagen);
 
         PrendaRequest request = new PrendaRequest(
@@ -60,6 +59,7 @@ public class PrendaService {
                 contacto,
                 imagenUrl
         );
+        validarDatosPrenda(request);
 
         Prenda prenda = construirPrenda(request, usuario, imagenUrl);
         return PrendaResponse.desdeEntidad(prendaRepository.save(prenda));
@@ -79,7 +79,7 @@ public class PrendaService {
 
     public PrendaResponse editarPrenda(Long id, PrendaRequest request, Usuario usuario) {
         Prenda prenda = obtenerPrendaPropia(id, usuario);
-        validarPrecio(request.precio());
+        validarDatosPrenda(request);
 
         prenda.setNombre(request.nombre());
         prenda.setDescripcion(request.descripcion());
@@ -175,6 +175,7 @@ public class PrendaService {
         }
 
         if (texto != null && !texto.isBlank()) {
+            validarTextoBusqueda(texto);
             String busqueda = texto.toLowerCase();
 
             prendas = prendas.stream()
@@ -232,13 +233,42 @@ public class PrendaService {
         }
     }
 
+    private void validarDatosPrenda(PrendaRequest request) {
+        validarNombrePrenda(request.nombre());
+        validarContacto(request.contacto());
+        validarPrecio(request.precio());
+    }
+
+    private void validarNombrePrenda(String nombre) {
+        String valor = nombre == null ? "" : nombre.trim().replaceAll("\\s+", " ");
+        if (!valor.matches("^[\\p{L}]+(?:\\s+[\\p{L}]+)*$")) {
+            throw new IllegalArgumentException("El nombre de la prenda solo puede contener letras y espacios");
+        }
+    }
+
+    private void validarContacto(String contacto) {
+        String valor = contacto == null ? "" : contacto.trim();
+        if (!valor.matches("9\\d{8}")) {
+            throw new IllegalArgumentException("El contacto debe empezar con 9 y tener 9 digitos");
+        }
+    }
+
+    private void validarTextoBusqueda(String texto) {
+        String valor = texto == null ? "" : texto.trim().replaceAll("\\s+", " ");
+        if (!valor.matches("^[\\p{L}]+(?:\\s+[\\p{L}]+)*$")) {
+            throw new IllegalArgumentException("La busqueda solo puede contener letras y espacios");
+        }
+    }
+
     private void validarRangoPrecios(BigDecimal precioMinimo, BigDecimal precioMaximo) {
-        if (precioMinimo != null && precioMinimo.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("El precio minimo no puede ser negativo");
+        BigDecimal precioFiltroMinimo = BigDecimal.ONE;
+
+        if (precioMinimo != null && precioMinimo.compareTo(precioFiltroMinimo) < 0) {
+            throw new IllegalArgumentException("El precio minimo debe ser al menos S/ 1");
         }
 
-        if (precioMaximo != null && precioMaximo.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("El precio maximo no puede ser negativo");
+        if (precioMaximo != null && precioMaximo.compareTo(precioFiltroMinimo) < 0) {
+            throw new IllegalArgumentException("El precio maximo debe ser al menos S/ 1");
         }
 
         if (precioMinimo != null && precioMaximo != null && precioMinimo.compareTo(precioMaximo) > 0) {
