@@ -8,6 +8,7 @@ import {
   sustainabilityCards,
 } from "../data/staticData";
 import { adaptProducts } from "../utils/productAdapter";
+import heroImage from "../assets/estilo-ia-outfits.png";
 
 function LandingPage() {
   const [featuredProducts, setFeaturedProducts] = useState([]);
@@ -38,11 +39,11 @@ function LandingPage() {
     <>
       <section className="hero-section">
         <div className="hero-copy">
-          <div className="eyebrow-pill">Moda circular con asistente de estilo IA</div>
-          <h1>Tu armario merece una segunda historia</h1>
+          <div className="eyebrow-pill">Moda inteligente para todos</div>
+          <h1>Estilo IA transforma tu forma de vestir</h1>
           <p>
-            Vende lo que ya no usas, encuentra piezas unicas e intercambia con
-            una comunidad que cree en la moda sostenible.
+            Descubre recomendaciones personalizadas, publica prendas con ayuda
+            de IA y conecta con una comunidad que impulsa la moda circular.
           </p>
 
           <div className="hero-actions">
@@ -53,19 +54,31 @@ function LandingPage() {
               Explorar catalogo
             </Link>
           </div>
+
+          <div className="hero-metrics">
+            <article>
+              <strong>92%</strong>
+              <span>compatibilidad de estilo</span>
+            </article>
+            <article>
+              <strong>IA</strong>
+              <span>recomendaciones visuales</span>
+            </article>
+            <article>
+              <strong>24/7</strong>
+              <span>catalogo disponible</span>
+            </article>
+          </div>
         </div>
 
         <div className="hero-visual">
           <div className="hero-frame">
-            <div className="hero-portrait">
-              <div className="hero-layer hero-layer-back"></div>
-              <div className="hero-layer hero-layer-middle"></div>
-              <div className="hero-layer hero-layer-front"></div>
-            </div>
+            <img src={heroImage} alt="Estilo IA con recomendaciones de moda" />
+            <div className="hero-image-shine"></div>
             <div className="floating-badge floating-badge-top">Pago seguro y protegido</div>
             <div className="floating-card">
-              <strong>Impacto real</strong>
-              <span>Cada prenda reutilizada reduce residuos y prolonga su historia.</span>
+              <strong>Estilo personalizado</strong>
+              <span>La IA sugiere prendas segun tu ocasion, clima y preferencias.</span>
             </div>
           </div>
         </div>

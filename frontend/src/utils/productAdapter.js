@@ -1,3 +1,19 @@
+export function formatPrice(value) {
+  if (value === undefined || value === null || value === "") return "";
+
+  const numericValue =
+    typeof value === "number"
+      ? value
+      : Number(String(value).replace("S/", "").replace(",", ".").trim());
+
+  if (Number.isNaN(numericValue)) return String(value);
+
+  return `S/ ${numericValue.toLocaleString("es-PE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
 export function adaptProduct(product) {
   if (!product) return product;
 
@@ -8,11 +24,7 @@ export function adaptProduct(product) {
     brand: product.brand || product.marca,
     size: product.size || product.talla,
     seller: product.seller || product.nombreVendedor,
-    price:
-      product.price ||
-      (product.precio !== undefined && product.precio !== null
-        ? `S/ ${product.precio}`
-        : ""),
+    price: product.price ? formatPrice(product.price) : formatPrice(product.precio),
     status:
       product.status ||
       (product.estadoPublicacion === "PUBLICADA"

@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { fetchProductDetail } from "../api/prendas";
 import { fetchPublicProfile } from "../api/usuarios";
 import { resolveBackendMedia } from "../utils/media";
+import { formatPrice } from "../utils/productAdapter";
 
 function ProductDetailPage() {
   const { id } = useParams();
@@ -100,7 +101,7 @@ function ProductDetailPage() {
             <div><strong>Color</strong><span>{product.color}</span></div>
             <div><strong>Estado</strong><span>{product.estadoFisico}</span></div>
             <div><strong>Tipo</strong><span>{product.tipoPublicacion}</span></div>
-            <div><strong>Precio</strong><span>S/ {product.precio}</span></div>
+            <div><strong>Precio</strong><span>{formatPrice(product.precio)}</span></div>
             <div><strong>Contacto</strong><span>{product?.contacto || "No registrado"}</span></div>
           </div>
 

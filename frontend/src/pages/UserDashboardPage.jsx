@@ -491,7 +491,17 @@ function UserDashboardPage() {
         </nav>
 
         <button type="button" className="user-logout-button" onClick={handleLogout}>
-          Cerrar sesion
+          <span>Cerrar sesion</span>
+          <svg
+            className="logout-icon"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M10 4H5.75A1.75 1.75 0 0 0 4 5.75v12.5C4 19.22 4.78 20 5.75 20H10" />
+            <path d="M15 8l4 4-4 4" />
+            <path d="M8.5 12H19" />
+          </svg>
         </button>
       </aside>
 
