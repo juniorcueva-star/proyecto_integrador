@@ -91,6 +91,16 @@ function AdminDashboardPage() {
   }
 
   async function handleUserAction(id, action) {
+    if (action === "eliminar") {
+      const confirmed = window.confirm(
+        "¿Estas seguro de eliminar este usuario? Esta accion borrara tambien sus prendas y datos relacionados.",
+      );
+
+      if (!confirmed) {
+        return;
+      }
+    }
+
     try {
       const updated =
         action === "banear"
@@ -104,7 +114,13 @@ function AdminDashboardPage() {
           ? current.filter((user) => user.id !== id)
           : current.map((user) => (user.id === id ? updated : user)),
       );
-      setStatus({ type: "success", message: "Usuario actualizado." });
+      setStatus({
+        type: "success",
+        message:
+          action === "eliminar"
+            ? "Usuario eliminado junto con sus prendas y datos relacionados."
+            : "Usuario actualizado.",
+      });
     } catch (error) {
       setStatus({ type: "error", message: error.message });
     }

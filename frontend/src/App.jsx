@@ -12,10 +12,15 @@ import SellerProfilePage from "./pages/SellerProfilePage";
 import UserDashboardPage from "./pages/UserDashboardPage";
 import "./App.css";
 
-function AppLayout({ children, showHeader = true, headerMode = "default" }) {
+function AppLayout({
+  children,
+  showHeader = true,
+  headerMode = "default",
+  showSessionActions = true,
+}) {
   return (
     <div className="app-shell">
-      {showHeader ? <SiteHeader mode={headerMode} /> : null}
+      {showHeader ? <SiteHeader mode={headerMode} showSessionActions={showSessionActions} /> : null}
       <main>{children}</main>
       <SiteFooter />
     </div>
@@ -61,7 +66,7 @@ function App() {
         <Route
           path="/prenda/:id"
           element={
-            <AppLayout>
+            <AppLayout headerMode="compact" showSessionActions={false}>
               <ProductDetailPage />
             </AppLayout>
           }
@@ -69,7 +74,7 @@ function App() {
         <Route
           path="/vendedor/:id"
           element={
-            <AppLayout>
+            <AppLayout headerMode="compact" showSessionActions={false}>
               <SellerProfilePage />
             </AppLayout>
           }

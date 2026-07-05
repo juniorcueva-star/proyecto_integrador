@@ -1,11 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  analyzeGarmentPhoto,
-  generateDescription,
-  recommendOutfit,
-  suggestPrice,
-} from "../api/ia";
+import { recommendOutfit } from "../api/ia";
 import {
   createPaymentMethod,
   deletePaymentMethod,
@@ -38,6 +33,17 @@ const sidebarItems = [
   { id: "agregar", label: "Agregar prenda" },
   { id: "ia", label: "Recomendacion IA" },
 ];
+
+const iaOptions = {
+  estilos: ["CASUAL", "FORMAL", "URBANO", "DEPORTIVO", "ELEGANTE"],
+  ocasiones: ["CLASES", "TRABAJO", "SALIDA", "EVENTO"],
+  climas: ["CALOR", "FRIO", "TEMPLADO"],
+  contexturas: [
+    { value: "DELGADA", label: "Delgado/a" },
+    { value: "NORMAL", label: "Normal" },
+    { value: "CONTEXTURA_GRUESA", label: "Ancho/a" },
+  ],
+};
 
 function UserDashboardPage() {
   const navigate = useNavigate();
@@ -92,6 +98,8 @@ function UserDashboardPage() {
     estilo: "CASUAL",
     ocasion: "SALIDA",
     clima: "TEMPLADO",
+    estaturaCm: "170",
+    contextura: "NORMAL",
   });
 
   useEffect(() => {
@@ -453,89 +461,35 @@ function UserDashboardPage() {
     }));
   }
 
-  function buildAiProductPayload() {
-    return {
-      nombre: productForm.nombre,
-      marca: productForm.marca,
-      color: productForm.color,
-      talla: productForm.talla,
-      categoria: productForm.categoria,
-      estadoFisico: productForm.estadoFisico,
-      tipoPublicacion: productForm.tipoPublicacion,
-    };
-  }
+  function validateIaProfile() {
+    const estaturaCm = Number(outfitForm.estaturaCm);
 
-  async function handleGenerateDescription() {
-    setAiStatus({ type: "", message: "" });
-    try {
-      const data = await generateDescription(buildAiProductPayload());
-      setProductForm((current) => ({
-        ...current,
-        nombre: data.tituloSugerido || current.nombre,
-        descripcion: data.descripcion || current.descripcion,
-      }));
-      setAiResult(data);
-      setAiStatus({ type: "success", message: "Descripcion generada." });
-      setActiveSection("agregar");
-    } catch (error) {
-      setAiStatus({ type: "error", message: error.message });
+    if (Number.isNaN(estaturaCm) || estaturaCm < 140 || estaturaCm > 205) {
+      return "La estatura debe estar entre 140 y 205 cm.";
     }
-  }
 
-  async function handleSuggestPrice() {
-    setAiStatus({ type: "", message: "" });
-    try {
-      const data = await suggestPrice({
-        ...buildAiProductPayload(),
-        limiteReferencias: 6,
-      });
-      setProductForm((current) => ({
-        ...current,
-        precio: data.precioSugerido ? String(data.precioSugerido) : current.precio,
-      }));
-      setAiResult(data);
-      setAiStatus({ type: "success", message: "Precio sugerido aplicado al formulario." });
-      setActiveSection("agregar");
-    } catch (error) {
-      setAiStatus({ type: "error", message: error.message });
+    if (!["DELGADA", "NORMAL", "CONTEXTURA_GRUESA"].includes(outfitForm.contextura)) {
+      return "Debes seleccionar una contextura valida.";
     }
-  }
 
-  async function handleAnalyzePhoto(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setAiStatus({ type: "", message: "" });
-    try {
-      const data = await analyzeGarmentPhoto(file);
-      setProductForm((current) => ({
-        ...current,
-        nombre: data.nombre || current.nombre,
-        descripcion: data.descripcion || current.descripcion,
-        marca: data.marca || current.marca,
-        color: data.color || current.color,
-        talla: data.talla || current.talla,
-        categoria: data.categoria || current.categoria,
-        estadoFisico: data.estadoFisico || current.estadoFisico,
-        precio: data.precio ? String(data.precio) : current.precio,
-        tipoPublicacion: data.tipoPublicacion || current.tipoPublicacion,
-      }));
-      setAiResult(data);
-      setAiStatus({ type: "success", message: "Prueba virtual integrada en recomendaciones IA." });
-      setActiveSection("agregar");
-    } catch (error) {
-      setAiStatus({ type: "error", message: error.message });
-    } finally {
-      event.target.value = "";
-    }
+    return "";
   }
 
   async function handleRecommendOutfit(event) {
     event.preventDefault();
     setAiStatus({ type: "", message: "" });
 
+    const validationMessage = validateIaProfile();
+    if (validationMessage) {
+      setAiStatus({ type: "error", message: validationMessage });
+      return;
+    }
+
     try {
-      const data = await recommendOutfit(outfitForm);
+      const data = await recommendOutfit({
+        ...outfitForm,
+        estaturaCm: Number(outfitForm.estaturaCm),
+      });
       setAiResult(data);
       setAiStatus({ type: "success", message: "Recomendacion generada." });
     } catch (error) {
@@ -550,6 +504,10 @@ function UserDashboardPage() {
       </div>
     ) : null;
   }
+
+  const recommendedProducts = adaptProducts(aiResult?.referenciasCatalogo || []);
+  const recommendationReasons = aiResult?.razones || [];
+  const suggestedGarments = aiResult?.prendasSugeridas || [];
 
   return (
     <section className="user-dashboard-shell">
@@ -1419,21 +1377,13 @@ function UserDashboardPage() {
           <section className="dashboard-panel user-section-panel user-section-panel-ia">
             <div className="panel-head">
               <h2>Recomendacion IA</h2>
-              <span>Aqui vive tambien la prueba virtual</span>
+              <span>Sugerencias basadas en estilo, ocasion y clima</span>
             </div>
 
             <div className="user-ia-intro">
               <article className="user-summary-card">
                 <strong>Recomendacion de outfit</strong>
-                <p>Usa estilo, ocasion y clima para obtener sugerencias del backend.</p>
-              </article>
-              <article className="user-summary-card">
-                <strong>Descripcion y precio</strong>
-                <p>Completa el formulario de prenda y deja que la IA lo apoye.</p>
-              </article>
-              <article className="user-summary-card">
-                <strong>Prueba virtual</strong>
-                <p>Se integra aqui mediante el analisis de foto y sugerencias visuales.</p>
+                <p>Completa tu perfil y recibe prendas recomendadas que encajen con tu necesidad.</p>
               </article>
             </div>
 
@@ -1441,38 +1391,79 @@ function UserDashboardPage() {
               <div className="module-form-grid">
                 <label>
                   Estilo
-                  <input
+                  <select
                     value={outfitForm.estilo}
                     onChange={(event) =>
                       setOutfitForm((current) => ({ ...current, estilo: event.target.value }))
                     }
-                  />
+                  >
+                    {iaOptions.estilos.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
                 </label>
                 <label>
                   Ocasion
-                  <input
+                  <select
                     value={outfitForm.ocasion}
                     onChange={(event) =>
                       setOutfitForm((current) => ({ ...current, ocasion: event.target.value }))
                     }
-                  />
+                  >
+                    {iaOptions.ocasiones.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
                 </label>
                 <label>
                   Clima
-                  <input
+                  <select
                     value={outfitForm.clima}
                     onChange={(event) =>
                       setOutfitForm((current) => ({ ...current, clima: event.target.value }))
                     }
+                  >
+                    {iaOptions.climas.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Estatura (cm)
+                  <input
+                    type="number"
+                    min="140"
+                    max="205"
+                    step="1"
+                    value={outfitForm.estaturaCm}
+                    onChange={(event) =>
+                      setOutfitForm((current) => ({
+                        ...current,
+                        estaturaCm: keepDigits(event.target.value, 3),
+                      }))
+                    }
                   />
                 </label>
                 <label>
-                  Prueba virtual y analisis por foto
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    onChange={handleAnalyzePhoto}
-                  />
+                  Contextura
+                  <select
+                    value={outfitForm.contextura}
+                    onChange={(event) =>
+                      setOutfitForm((current) => ({ ...current, contextura: event.target.value }))
+                    }
+                  >
+                    {iaOptions.contexturas.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </div>
 
@@ -1480,31 +1471,52 @@ function UserDashboardPage() {
                 <button type="submit" className="button-primary module-submit">
                   Recomendar outfit
                 </button>
-                <button
-                  type="button"
-                  className="button-secondary module-submit"
-                  onClick={handleGenerateDescription}
-                >
-                  Generar descripcion
-                </button>
-                <button
-                  type="button"
-                  className="button-secondary module-submit"
-                  onClick={handleSuggestPrice}
-                >
-                  Sugerir precio
-                </button>
               </div>
             </form>
 
             {renderStatusMessage(aiStatus)}
 
             {aiResult ? (
-              <pre className="result-box">{JSON.stringify(aiResult, null, 2)}</pre>
+              <div className="result-box result-box-rich">
+                <div className="result-section">
+                  <strong>{aiResult.recomendacionGeneral || "Prendas recomendadas para tu perfil"}</strong>
+                  {suggestedGarments.length ? (
+                    <div className="result-chip-list">
+                      {suggestedGarments.map((item) => (
+                        <span key={item} className="result-chip">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+
+                {recommendationReasons.length ? (
+                  <div className="result-section">
+                    <h3>Por que te las recomendamos</h3>
+                    <ul className="result-list">
+                      {recommendationReasons.map((reason) => (
+                        <li key={reason}>{reason}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {recommendedProducts.length ? (
+                  <div className="result-section">
+                    <h3>Prendas recomendadas</h3>
+                    <div className="product-grid user-dashboard-products">
+                      {recommendedProducts.map((product) => (
+                        <ProductCard key={product.id} product={product} />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             ) : (
               <div className="empty-state">
                 <strong>Sin resultado todavia</strong>
-                <p>Cuando ejecutes una recomendacion o una prueba visual, veras la respuesta aqui.</p>
+                <p>Cuando presiones recomendar outfit, veras aqui las prendas sugeridas para tu perfil.</p>
               </div>
             )}
           </section>

@@ -21,6 +21,21 @@ export function recommendOutfit(payload) {
   });
 }
 
+export function recommendLookWithPhoto(payload) {
+  const formData = new FormData();
+  formData.append("estilo", payload.estilo);
+  formData.append("ocasion", payload.ocasion);
+  formData.append("clima", payload.clima);
+  formData.append("estaturaCm", String(payload.estaturaCm));
+  formData.append("contextura", payload.contextura);
+  formData.append("foto", payload.foto);
+
+  return apiRequest("/ia/recomendar-look-con-foto", {
+    method: "POST",
+    body: formData,
+  });
+}
+
 export function adaptCombination(payload) {
   return apiRequest("/ia/adaptar-combinacion", {
     method: "POST",

@@ -5,10 +5,14 @@ import com.estiloia.estilo_ia.entity.Prenda;
 import com.estiloia.estilo_ia.entity.Usuario;
 import com.estiloia.estilo_ia.enums.EstadoPublicacion;
 import com.estiloia.estilo_ia.enums.EstadoUsuario;
+import com.estiloia.estilo_ia.repository.MetodoPagoRepository;
 import com.estiloia.estilo_ia.repository.PrendaRepository;
+import com.estiloia.estilo_ia.repository.ReclamoRepository;
+import com.estiloia.estilo_ia.repository.ResenaRepository;
 import com.estiloia.estilo_ia.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.Comparator;
@@ -20,6 +24,9 @@ public class AdminService {
 
     private final UsuarioRepository usuarioRepository;
     private final PrendaRepository prendaRepository;
+    private final MetodoPagoRepository metodoPagoRepository;
+    private final ResenaRepository resenaRepository;
+    private final ReclamoRepository reclamoRepository;
     private final ResenaService resenaService;
 
     public List<AdminUsuarioResumenResponse> listarUsuarios() {
@@ -80,21 +87,40 @@ public class AdminService {
     public AdminUsuarioResumenResponse banearUsuario(Long id) {
         Usuario usuario = buscarUsuarioPorId(id);
         usuario.setEstadoUsuario(EstadoUsuario.BANEADO);
+        prendaRepository.findByUsuarioAndEstadoPublicacionAndEliminadoFalse(usuario, EstadoPublicacion.PUBLICADA)
+                .forEach(prenda -> prenda.setEstadoPublicacion(EstadoPublicacion.PAUSADA));
         return AdminUsuarioResumenResponse.desdeEntidad(usuarioRepository.save(usuario));
     }
 
+    @Transactional
     public AdminUsuarioResumenResponse reactivarUsuario(Long id) {
         Usuario usuario = buscarUsuarioPorId(id);
         usuario.setEstadoUsuario(EstadoUsuario.ACTIVO);
         usuario.setEliminado(false);
+        prendaRepository.findByUsuarioAndEstadoPublicacionAndEliminadoFalse(usuario, EstadoPublicacion.PAUSADA)
+                .forEach(prenda -> prenda.setEstadoPublicacion(EstadoPublicacion.PUBLICADA));
         return AdminUsuarioResumenResponse.desdeEntidad(usuarioRepository.save(usuario));
     }
 
+    @Transactional
     public AdminUsuarioResumenResponse eliminarUsuario(Long id) {
         Usuario usuario = buscarUsuarioPorId(id);
-        usuario.setEstadoUsuario(EstadoUsuario.ELIMINADO);
-        usuario.setEliminado(true);
-        return AdminUsuarioResumenResponse.desdeEntidad(usuarioRepository.save(usuario));
+        AdminUsuarioResumenResponse resumen = AdminUsuarioResumenResponse.desdeEntidad(usuario);
+        List<Prenda> prendas = prendaRepository.findByUsuario(usuario);
+
+        metodoPagoRepository.deleteAll(metodoPagoRepository.findByUsuario(usuario));
+        resenaRepository.deleteAll(resenaRepository.findByAutorAndEliminadoFalse(usuario));
+        resenaRepository.deleteAll(resenaRepository.findByReceptorAndEliminadoFalse(usuario));
+        reclamoRepository.deleteAll(reclamoRepository.findByUsuarioCreadorOrderByFechaCreacionDesc(usuario));
+        reclamoRepository.deleteAll(reclamoRepository.findByUsuarioReportado(usuario));
+
+        if (!prendas.isEmpty()) {
+            reclamoRepository.deleteAll(reclamoRepository.findByPrendaIn(prendas));
+            prendaRepository.deleteAll(prendas);
+        }
+
+        usuarioRepository.delete(usuario);
+        return resumen;
     }
 
     public AdminEstadisticasResponse obtenerEstadisticasGenerales() {

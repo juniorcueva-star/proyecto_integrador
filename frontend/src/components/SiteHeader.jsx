@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { clearAuthSession, getAuthSession } from "../utils/authStorage";
 
-function SiteHeader({ mode = "default" }) {
+function SiteHeader({ mode = "default", showSessionActions = true }) {
   const navigate = useNavigate();
   const session = getAuthSession();
   const showCompactNav = mode === "auth" || mode === "compact";
@@ -37,7 +37,7 @@ function SiteHeader({ mode = "default" }) {
         >
           <span className="search-ring"></span>
         </button>
-        {session.token ? (
+        {showSessionActions && session.token ? (
           <>
             <span className="session-pill">{session.nombre || "Mi cuenta"}</span>
             <button type="button" className="ghost-button" onClick={handleLogout}>
@@ -46,12 +46,16 @@ function SiteHeader({ mode = "default" }) {
           </>
         ) : (
           <>
-            <NavLink to="/login" className="ghost-link">
-              Entrar
-            </NavLink>
-            <NavLink to="/register" className="primary-link">
-              Crear cuenta
-            </NavLink>
+            {!showSessionActions && session.token ? null : (
+              <>
+                <NavLink to="/login" className="ghost-link">
+                  Entrar
+                </NavLink>
+                <NavLink to="/register" className="primary-link">
+                  Crear cuenta
+                </NavLink>
+              </>
+            )}
           </>
         )}
       </div>

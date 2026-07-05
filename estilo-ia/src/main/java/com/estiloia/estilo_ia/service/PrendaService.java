@@ -140,7 +140,7 @@ public class PrendaService {
     }
 
     public List<PrendaResumenResponse> listarPrendasPublicadas() {
-        return prendaRepository.findByEstadoPublicacionAndEliminadoFalse(EstadoPublicacion.PUBLICADA)
+        return prendaRepository.findCatalogoVisibleByEstadoPublicacion(EstadoPublicacion.PUBLICADA)
                 .stream()
                 .sorted(Comparator.comparing(Prenda::getFechaPublicacion).reversed())
                 .map(PrendaResumenResponse::desdeEntidad)
@@ -160,14 +160,14 @@ public class PrendaService {
         List<Prenda> prendas;
 
         if (categoria != null) {
-            prendas = prendaRepository.findByCategoriaAndPrecioBetweenAndEstadoPublicacionAndEliminadoFalse(
+            prendas = prendaRepository.findCatalogoVisibleByCategoriaAndPrecioBetweenAndEstadoPublicacion(
                     categoria,
                     min,
                     max,
                     EstadoPublicacion.PUBLICADA
             );
         } else {
-            prendas = prendaRepository.findByPrecioBetweenAndEstadoPublicacionAndEliminadoFalse(
+            prendas = prendaRepository.findCatalogoVisibleByPrecioBetweenAndEstadoPublicacion(
                     min,
                     max,
                     EstadoPublicacion.PUBLICADA
@@ -201,7 +201,18 @@ public class PrendaService {
             throw new IllegalStateException("La prenda fue eliminada");
         }
 
+        if (!puedeMostrarseEnCatalogo(prenda)) {
+            throw new IllegalStateException("La prenda no esta disponible mientras la cuenta del vendedor este suspendida");
+        }
+
         return PrendaResponse.desdeEntidad(prenda);
+    }
+
+    private boolean puedeMostrarseEnCatalogo(Prenda prenda) {
+        Usuario usuario = prenda.getUsuario();
+        return usuario != null
+                && usuario.getEstadoUsuario() == EstadoUsuario.ACTIVO
+                && !Boolean.TRUE.equals(usuario.getEliminado());
     }
 
     private Prenda construirPrenda(PrendaRequest request, Usuario usuario, String imagenUrl) {

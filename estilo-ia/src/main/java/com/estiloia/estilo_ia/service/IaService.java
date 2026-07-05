@@ -138,7 +138,26 @@ public class IaService {
     }
 
     public IaOutfitResponse recomendarOutfit(IaOutfitRequest request) {
-        List<PrendaResumenResponse> referencias = obtenerReferenciasCatalogo(8);
+        validarPerfilCorporal(request.estaturaCm(), request.contextura());
+        List<PrendaResumenResponse> referencias = obtenerReferenciasParaLook(
+                request.estilo(),
+                request.ocasion(),
+                request.clima(),
+                request.estaturaCm(),
+                request.contextura(),
+                8
+        );
+
+        if (apiKey == null || apiKey.isBlank()) {
+            return construirRespuestaLocalOutfit(
+                    request.estilo(),
+                    request.ocasion(),
+                    request.clima(),
+                    request.estaturaCm(),
+                    request.contextura(),
+                    referencias
+            );
+        }
 
         String prompt = """
                 Eres un asesor de moda sostenible para un marketplace de ropa usada.
@@ -153,6 +172,8 @@ public class IaService {
                 - Estilo: %s
                 - Ocasion: %s
                 - Clima: %s
+                - Estatura: %s cm
+                - Contextura: %s
 
                 Usa referencias reales del catalogo para inspirarte:
                 %s
@@ -160,17 +181,30 @@ public class IaService {
                 request.estilo(),
                 request.ocasion(),
                 request.clima(),
+                request.estaturaCm(),
+                describirContextura(request.contextura()),
                 serializarReferencias(referencias)
         );
 
-        JsonNode json = llamarModeloComoJson(prompt, 450);
+        try {
+            JsonNode json = llamarModeloComoJson(prompt, 450);
 
-        return new IaOutfitResponse(
-                json.path("recomendacionGeneral").asText("No se pudo generar una recomendacion"),
-                leerArrayTexto(json.path("prendasSugeridas")),
-                leerArrayTexto(json.path("razones")),
-                referencias
-        );
+            return new IaOutfitResponse(
+                    json.path("recomendacionGeneral").asText("No se pudo generar una recomendacion"),
+                    leerArrayTexto(json.path("prendasSugeridas")),
+                    leerArrayTexto(json.path("razones")),
+                    referencias
+            );
+        } catch (Exception ex) {
+            return construirRespuestaLocalOutfit(
+                    request.estilo(),
+                    request.ocasion(),
+                    request.clima(),
+                    request.estaturaCm(),
+                    request.contextura(),
+                    referencias
+            );
+        }
     }
 
     public IaPrecioResponse sugerirPrecio(IaPrecioRequest request) {
@@ -462,6 +496,35 @@ public class IaService {
                         "Elige una ocasion concreta para ajustar mejor la combinacion.",
                         "Usa tu estatura y contextura como referencia para escoger largo, ancho visual y talla orientativa."
                 ),
+                referencias
+        );
+    }
+
+    private IaOutfitResponse construirRespuestaLocalOutfit(
+            String estilo,
+            String ocasion,
+            String clima,
+            Integer estaturaCm,
+            String contextura,
+            List<PrendaResumenResponse> referencias
+    ) {
+        List<String> prendas = referencias.stream()
+                .limit(3)
+                .map(prenda -> prenda.nombre() + " (" + prenda.categoria() + ", talla " + prenda.talla() + ")")
+                .toList();
+
+        if (prendas.isEmpty()) {
+            prendas = List.of(
+                    "Busca una prenda superior neutra",
+                    "Agrega una base comoda para la ocasion",
+                    "Cierra el look con calzado acorde al clima"
+            );
+        }
+
+        return new IaOutfitResponse(
+                "Se priorizaron combinaciones del catalogo segun tu ocasion, clima, estatura y contextura.",
+                prendas,
+                construirRazonesLocal(estilo, ocasion, clima, estaturaCm, contextura, referencias),
                 referencias
         );
     }
