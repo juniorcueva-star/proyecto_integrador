@@ -3,6 +3,7 @@ package com.estiloia.estilo_ia.entity;
 import com.estiloia.estilo_ia.enums.CategoriaPrenda;
 import com.estiloia.estilo_ia.enums.EstadoFisicoPrenda;
 import com.estiloia.estilo_ia.enums.EstadoPublicacion;
+import com.estiloia.estilo_ia.enums.GeneroPrenda;
 import com.estiloia.estilo_ia.enums.TallaPrenda;
 import com.estiloia.estilo_ia.enums.TipoPublicacion;
 import jakarta.persistence.*;
@@ -46,6 +47,13 @@ public class Prenda {
      */
     @Column(nullable = false, length = 100)
     private String marca;
+
+    /**
+     * Publico objetivo de la prenda: hombre, mujer o unisex.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'UNISEX'")
+    private GeneroPrenda genero;
 
     /**
      * Color principal de la prenda.
@@ -145,6 +153,17 @@ public class Prenda {
 
         if (this.imagenUrl == null || this.imagenUrl.isBlank()) {
             this.imagenUrl = "/img/prenda-default.png";
+        }
+
+        if (this.genero == null) {
+            this.genero = GeneroPrenda.UNISEX;
+        }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        if (this.genero == null) {
+            this.genero = GeneroPrenda.UNISEX;
         }
     }
 }

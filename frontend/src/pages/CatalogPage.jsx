@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { fetchCatalog } from "../api/prendas";
 import ProductCard from "../components/ProductCard";
 import { garmentOptions } from "../data/staticData";
@@ -6,16 +7,28 @@ import { keepDecimal, keepLettersAndSpaces } from "../utils/inputSanitizers";
 import { adaptProducts } from "../utils/productAdapter";
 
 function CatalogPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialGender = searchParams.get("genero") || "";
   const [products, setProducts] = useState([]);
   const [filterForm, setFilterForm] = useState({
     texto: "",
     categoria: "",
+    genero: initialGender,
     precioMinimo: "",
     precioMaximo: "",
   });
-  const [activeFilters, setActiveFilters] = useState({});
+  const [activeFilters, setActiveFilters] = useState(initialGender ? { genero: initialGender } : {});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const genero = searchParams.get("genero") || "";
+    if (!["", "HOMBRE", "MUJER", "UNISEX"].includes(genero)) return;
+
+    setFilterForm((current) => ({ ...current, genero }));
+    setActiveFilters((current) => ({ ...current, genero }));
+    setLoading(true);
+  }, [searchParams]);
 
   useEffect(() => {
     let isMounted = true;
@@ -24,7 +37,12 @@ function CatalogPage() {
       try {
         const data = await fetchCatalog(activeFilters);
         if (!isMounted) return;
-        setProducts(adaptProducts(data));
+        const adaptedProducts = adaptProducts(data);
+        const visibleProducts = activeFilters.genero
+          ? adaptedProducts.filter((product) => product.genero === activeFilters.genero)
+          : adaptedProducts;
+
+        setProducts(visibleProducts);
         setError("");
       } catch (loadError) {
         if (!isMounted) return;
@@ -70,24 +88,35 @@ function CatalogPage() {
     }
 
     setLoading(true);
-    setActiveFilters({
+    const nextFilters = {
       texto: filterForm.texto.trim(),
       categoria: filterForm.categoria,
+      genero: filterForm.genero,
       precioMinimo: filterForm.precioMinimo,
       precioMaximo: filterForm.precioMaximo,
-    });
+    };
+
+    setActiveFilters(nextFilters);
+
+    if (nextFilters.genero) {
+      setSearchParams({ genero: nextFilters.genero });
+    } else {
+      setSearchParams({});
+    }
   }
 
   function handleClearFilters() {
     setFilterForm({
       texto: "",
       categoria: "",
+      genero: "",
       precioMinimo: "",
       precioMaximo: "",
     });
     setLoading(true);
     setError("");
     setActiveFilters({});
+    setSearchParams({});
   }
 
   return (
@@ -124,6 +153,18 @@ function CatalogPage() {
                   {option}
                 </option>
               ))}
+            </select>
+          </div>
+          <div className="sidebar-block">
+            <h3>Genero</h3>
+            <select
+              value={filterForm.genero}
+              onChange={(event) => handleFilterChange("genero", event.target.value)}
+            >
+              <option value="">Todos</option>
+              <option value="HOMBRE">Hombre</option>
+              <option value="MUJER">Mujer</option>
+              <option value="UNISEX">Unisex</option>
             </select>
           </div>
           <div className="sidebar-block">

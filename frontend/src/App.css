@@ -37,14 +37,6 @@
   color: var(--olive-strong);
 }
 
-.topbar-auth .search-ring {
-  border-color: #fff7eb;
-}
-
-.topbar-auth .search-ring::after {
-  background: #fff7eb;
-}
-
 .brand {
   display: flex;
   align-items: center;
@@ -114,37 +106,6 @@
   background: rgba(97, 112, 72, 0.12);
   color: var(--olive);
   font-weight: 700;
-}
-
-.icon-button {
-  display: grid;
-  place-items: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  cursor: pointer;
-}
-
-.search-ring {
-  width: 1rem;
-  height: 1rem;
-  border: 2px solid var(--ink);
-  border-radius: 999px;
-  position: relative;
-}
-
-.search-ring::after {
-  content: "";
-  position: absolute;
-  right: -0.4rem;
-  bottom: -0.3rem;
-  width: 0.55rem;
-  height: 2px;
-  background: var(--ink);
-  transform: rotate(45deg);
-  transform-origin: center;
 }
 
 .primary-link,
@@ -1253,6 +1214,19 @@
 .dashboard-page {
   padding-top: 3rem;
   padding-bottom: 5rem;
+}
+
+.page-back-row {
+  display: flex;
+  align-items: center;
+  padding-inline: clamp(1.25rem, 2vw, 2.5rem);
+  padding-top: 1.5rem;
+  margin-bottom: -1rem;
+}
+
+.page-back-button {
+  min-height: 3rem;
+  padding-inline: 1.2rem;
 }
 
 .user-dashboard-shell {

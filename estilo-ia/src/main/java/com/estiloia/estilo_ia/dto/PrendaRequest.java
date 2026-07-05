@@ -2,6 +2,7 @@ package com.estiloia.estilo_ia.dto;
 
 import com.estiloia.estilo_ia.enums.CategoriaPrenda;
 import com.estiloia.estilo_ia.enums.EstadoFisicoPrenda;
+import com.estiloia.estilo_ia.enums.GeneroPrenda;
 import com.estiloia.estilo_ia.enums.TallaPrenda;
 import com.estiloia.estilo_ia.enums.TipoPublicacion;
 import jakarta.validation.constraints.*;
@@ -27,6 +28,11 @@ public record PrendaRequest(
         @NotBlank(message = "La marca es obligatoria")
         @Size(max = 100, message = "La marca no debe superar los 100 caracteres")
         String marca,
+
+        @Size(max = 100, message = "La marca personalizada no debe superar los 100 caracteres")
+        String marcaPersonalizada,
+
+        GeneroPrenda genero,
 
         @NotBlank(message = "El color es obligatorio")
         @Size(max = 60, message = "El color no debe superar los 60 caracteres")

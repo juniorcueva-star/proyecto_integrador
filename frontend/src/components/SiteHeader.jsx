@@ -4,7 +4,8 @@ import { clearAuthSession, getAuthSession } from "../utils/authStorage";
 function SiteHeader({ mode = "default", showSessionActions = true }) {
   const navigate = useNavigate();
   const session = getAuthSession();
-  const showCompactNav = mode === "auth" || mode === "compact";
+  const showMarketingNav = mode !== "compact";
+  const useStaticBrand = mode === "compact" && Boolean(session.token);
 
   function handleLogout() {
     clearAuthSession();
@@ -14,29 +15,32 @@ function SiteHeader({ mode = "default", showSessionActions = true }) {
 
   return (
     <header className={`topbar ${mode === "auth" ? "topbar-auth" : ""}`}>
-      <NavLink to="/" className="brand brand-link">
-        <div className="brand-mark">E</div>
-        <div className="brand-text">
-          <span>Estilo IA</span>
+      {useStaticBrand ? (
+        <div className="brand brand-static" aria-label="Estilo IA">
+          <div className="brand-mark">E</div>
+          <div className="brand-text">
+            <span>Estilo IA</span>
+          </div>
         </div>
-      </NavLink>
+      ) : (
+        <NavLink to="/" className="brand brand-link">
+          <div className="brand-mark">E</div>
+          <div className="brand-text">
+            <span>Estilo IA</span>
+          </div>
+        </NavLink>
+      )}
 
-      <nav className="main-nav" aria-label="Principal">
-        {!showCompactNav ? <NavLink to="/catalogo">Catalogo</NavLink> : null}
-        <a href="/#como-funciona">Como funciona</a>
-        {!showCompactNav ? <a href="/#sostenibilidad">Sostenibilidad</a> : null}
-        {!showCompactNav ? <a href="/#ia">Estilo IA</a> : null}
-      </nav>
+      {showMarketingNav ? (
+        <nav className="main-nav" aria-label="Principal">
+          <NavLink to="/catalogo?genero=HOMBRE">Hombre</NavLink>
+          <NavLink to="/catalogo?genero=MUJER">Mujer</NavLink>
+          <NavLink to="/catalogo?genero=UNISEX">Unisex</NavLink>
+          <a href="/#como-funciona">Como funciona</a>
+        </nav>
+      ) : null}
 
       <div className="topbar-actions">
-        <button
-          type="button"
-          className="icon-button"
-          aria-label="Buscar"
-          onClick={() => navigate("/catalogo")}
-        >
-          <span className="search-ring"></span>
-        </button>
         {showSessionActions && session.token ? (
           <>
             <span className="session-pill">{session.nombre || "Mi cuenta"}</span>

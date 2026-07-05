@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import SiteFooter from "./components/SiteFooter";
 import SiteHeader from "./components/SiteHeader";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -10,7 +10,48 @@ import ProductDetailPage from "./pages/ProductDetailPage";
 import RegisterPage from "./pages/RegisterPage";
 import SellerProfilePage from "./pages/SellerProfilePage";
 import UserDashboardPage from "./pages/UserDashboardPage";
+import { getAuthSession } from "./utils/authStorage";
 import "./App.css";
+
+function shouldShowAuthenticatedBackButton(pathname) {
+  if (pathname === "/" || pathname === "/login" || pathname === "/register") {
+    return false;
+  }
+
+  if (pathname === "/user" || pathname === "/admin") {
+    return false;
+  }
+
+  return true;
+}
+
+function AuthenticatedBackButton() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const session = getAuthSession();
+  const fallbackPath = session.rol === "ROLE_ADMIN" ? "/admin" : "/user";
+
+  function handleGoBack() {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+
+    navigate(fallbackPath);
+  }
+
+  if (!session.token || !shouldShowAuthenticatedBackButton(location.pathname)) {
+    return null;
+  }
+
+  return (
+    <div className="page-back-row">
+      <button type="button" className="button-secondary page-back-button" onClick={handleGoBack}>
+        Volver
+      </button>
+    </div>
+  );
+}
 
 function AppLayout({
   children,
@@ -18,10 +59,16 @@ function AppLayout({
   headerMode = "default",
   showSessionActions = true,
 }) {
+  const session = getAuthSession();
+  const shouldRenderHeader = showHeader && !session.token;
+
   return (
     <div className="app-shell">
-      {showHeader ? <SiteHeader mode={headerMode} showSessionActions={showSessionActions} /> : null}
-      <main>{children}</main>
+      {shouldRenderHeader ? <SiteHeader mode={headerMode} showSessionActions={showSessionActions} /> : null}
+      <main>
+        <AuthenticatedBackButton />
+        {children}
+      </main>
       <SiteFooter />
     </div>
   );
@@ -66,7 +113,7 @@ function App() {
         <Route
           path="/prenda/:id"
           element={
-            <AppLayout headerMode="compact" showSessionActions={false}>
+            <AppLayout showHeader={false}>
               <ProductDetailPage />
             </AppLayout>
           }

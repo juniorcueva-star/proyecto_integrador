@@ -1,6 +1,7 @@
 package com.estiloia.estilo_ia.service;
 
 import com.estiloia.estilo_ia.dto.PrendaRequest;
+import com.estiloia.estilo_ia.dto.PrendaOpcionesResponse;
 import com.estiloia.estilo_ia.dto.PrendaResponse;
 import com.estiloia.estilo_ia.dto.PrendaResumenResponse;
 import com.estiloia.estilo_ia.entity.Prenda;
@@ -16,13 +17,42 @@ import org.springframework.web.multipart.MultipartFile;
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
 public class PrendaService {
 
+    private static final String OPCION_OTRA_MARCA = "OTRA";
+    private static final List<String> MARCAS_RECONOCIDAS = List.of(
+            "Nike",
+            "Adidas",
+            "Puma",
+            "Reebok",
+            "Under Armour",
+            "Zara",
+            "H&M",
+            "Levi's",
+            "Tommy Hilfiger",
+            "Calvin Klein",
+            "Forever 21",
+            "Ripley",
+            "Saga Falabella",
+            "Topitop",
+            "Sybilla",
+            "Kids Made Here"
+    );
+
     private final PrendaRepository prendaRepository;
     private final ImagenService imagenService;
+
+    public PrendaOpcionesResponse obtenerOpcionesPublicacion() {
+        return new PrendaOpcionesResponse(
+                List.of(GeneroPrenda.HOMBRE.name(), GeneroPrenda.MUJER.name(), GeneroPrenda.UNISEX.name()),
+                MARCAS_RECONOCIDAS,
+                OPCION_OTRA_MARCA
+        );
+    }
 
     public PrendaResponse crearPrenda(PrendaRequest request, Usuario usuario) {
         validarDatosPrenda(request);
@@ -34,6 +64,8 @@ public class PrendaService {
             String nombre,
             String descripcion,
             String marca,
+            String marcaPersonalizada,
+            GeneroPrenda genero,
             String color,
             TallaPrenda talla,
             CategoriaPrenda categoria,
@@ -50,6 +82,8 @@ public class PrendaService {
                 nombre,
                 descripcion,
                 marca,
+                marcaPersonalizada,
+                genero,
                 color,
                 talla,
                 categoria,
@@ -83,7 +117,8 @@ public class PrendaService {
 
         prenda.setNombre(request.nombre());
         prenda.setDescripcion(request.descripcion());
-        prenda.setMarca(request.marca());
+        prenda.setMarca(resolverMarca(request));
+        prenda.setGenero(resolverGenero(request.genero()));
         prenda.setColor(request.color());
         prenda.setTalla(request.talla());
         prenda.setCategoria(request.categoria());
@@ -219,7 +254,8 @@ public class PrendaService {
         return Prenda.builder()
                 .nombre(request.nombre())
                 .descripcion(request.descripcion())
-                .marca(request.marca())
+                .marca(resolverMarca(request))
+                .genero(resolverGenero(request.genero()))
                 .color(request.color())
                 .talla(request.talla())
                 .categoria(request.categoria())
@@ -248,6 +284,66 @@ public class PrendaService {
         validarNombrePrenda(request.nombre());
         validarContacto(request.contacto());
         validarPrecio(request.precio());
+        resolverMarca(request);
+    }
+
+    private GeneroPrenda resolverGenero(GeneroPrenda genero) {
+        return genero == null ? GeneroPrenda.UNISEX : genero;
+    }
+
+    private String resolverMarca(PrendaRequest request) {
+        String marcaSeleccionada = limpiarTexto(request.marca());
+        String marcaPersonalizada = limpiarTexto(request.marcaPersonalizada());
+
+        if (esOpcionOtraMarca(marcaSeleccionada)) {
+            if (marcaPersonalizada.isBlank()) {
+                throw new IllegalArgumentException("Escribe la marca cuando selecciones la opcion Otros");
+            }
+            validarFormatoMarca(marcaPersonalizada);
+            return marcaPersonalizada;
+        }
+
+        if (marcaSeleccionada.isBlank()) {
+            throw new IllegalArgumentException("La marca es obligatoria");
+        }
+
+        String marcaReconocida = buscarMarcaReconocida(marcaSeleccionada);
+        if (marcaReconocida != null) {
+            return marcaReconocida;
+        }
+
+        // Permite clientes antiguos que aun envian la marca como texto libre.
+        validarFormatoMarca(marcaSeleccionada);
+        return marcaSeleccionada;
+    }
+
+    private String limpiarTexto(String valor) {
+        return valor == null ? "" : valor.trim().replaceAll("\\s+", " ");
+    }
+
+    private boolean esOpcionOtraMarca(String valor) {
+        String normalizado = valor.toUpperCase(Locale.ROOT);
+        return OPCION_OTRA_MARCA.equals(normalizado)
+                || "OTRO".equals(normalizado)
+                || "OTROS".equals(normalizado);
+    }
+
+    private String buscarMarcaReconocida(String marca) {
+        String normalizada = normalizarMarca(marca);
+        return MARCAS_RECONOCIDAS.stream()
+                .filter(opcion -> normalizarMarca(opcion).equals(normalizada))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String normalizarMarca(String valor) {
+        return valor == null ? "" : valor.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private void validarFormatoMarca(String marca) {
+        if (!marca.matches("^[\\p{L}\\p{N} .&'\\-]+$")) {
+            throw new IllegalArgumentException("La marca solo puede contener letras, numeros, espacios y simbolos basicos");
+        }
     }
 
     private void validarNombrePrenda(String nombre) {

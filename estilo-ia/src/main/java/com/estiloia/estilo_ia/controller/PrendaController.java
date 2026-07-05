@@ -1,6 +1,7 @@
 package com.estiloia.estilo_ia.controller;
 
 import com.estiloia.estilo_ia.dto.PrendaRequest;
+import com.estiloia.estilo_ia.dto.PrendaOpcionesResponse;
 import com.estiloia.estilo_ia.dto.PrendaResponse;
 import com.estiloia.estilo_ia.dto.PrendaResumenResponse;
 import com.estiloia.estilo_ia.entity.Usuario;
@@ -25,6 +26,11 @@ public class PrendaController {
 
     private final PrendaService prendaService;
 
+    @GetMapping("/opciones")
+    public ResponseEntity<PrendaOpcionesResponse> obtenerOpcionesPublicacion() {
+        return ResponseEntity.ok(prendaService.obtenerOpcionesPublicacion());
+    }
+
     @PostMapping
     public ResponseEntity<PrendaResponse> crearPrenda(
             @Valid @RequestBody PrendaRequest request,
@@ -38,6 +44,8 @@ public class PrendaController {
             @RequestParam String nombre,
             @RequestParam String descripcion,
             @RequestParam String marca,
+            @RequestParam(required = false) String marcaPersonalizada,
+            @RequestParam(required = false) GeneroPrenda genero,
             @RequestParam String color,
             @RequestParam TallaPrenda talla,
             @RequestParam CategoriaPrenda categoria,
@@ -52,6 +60,8 @@ public class PrendaController {
                 nombre,
                 descripcion,
                 marca,
+                marcaPersonalizada,
+                genero,
                 color,
                 talla,
                 categoria,
