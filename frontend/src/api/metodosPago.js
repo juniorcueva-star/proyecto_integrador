@@ -1,24 +1,22 @@
-import { apiRequest } from "./client";
+import {
+  createPaymentMethodInFirebase,
+  deletePaymentMethodInFirebase,
+  fetchOwnPaymentMethodsFromFirebase,
+  togglePaymentMethodInFirebase,
+} from "./firebaseMetodosPago";
 
 export function fetchOwnPaymentMethods() {
-  return apiRequest("/metodos-pago/mis-metodos");
+  return fetchOwnPaymentMethodsFromFirebase();
 }
 
 export function createPaymentMethod(payload) {
-  return apiRequest("/metodos-pago", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  return createPaymentMethodInFirebase(payload);
 }
 
 export function togglePaymentMethod(id, active) {
-  return apiRequest(`/metodos-pago/${id}/${active ? "activar" : "desactivar"}`, {
-    method: "PATCH",
-  });
+  return togglePaymentMethodInFirebase(id, active);
 }
 
 export function deletePaymentMethod(id) {
-  return apiRequest(`/metodos-pago/${id}`, {
-    method: "DELETE",
-  });
+  return deletePaymentMethodInFirebase(id);
 }

@@ -1,0 +1,25 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function ownUserId() {
+      return request.auth.uid;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/usuarios/$(ownUserId()))
+        && firestore.get(/databases/(default)/documents/usuarios/$(ownUserId())).data.rol == "ROLE_ADMIN"
+        && firestore.get(/databases/(default)/documents/usuarios/$(ownUserId())).data.eliminado == false;
+    }
+
+    match /prendas/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if (signedIn() && ownUserId() == userId) || isAdmin();
+    }
+  }
+}

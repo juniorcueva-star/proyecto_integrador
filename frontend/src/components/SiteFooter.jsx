@@ -19,7 +19,7 @@ function SiteFooter() {
       <div className="footer-links">
         <div>
           <h3>Explorar</h3>
-          <Link to="/catalogo">Catalogo</Link>
+          <Link to="/catalogo">Catálogo</Link>
           <Link to="/user">Estilo IA</Link>
         </div>
         <div>

@@ -3,19 +3,19 @@ export const steps = [
     number: "01",
     title: "Sube tu prenda",
     description:
-      "Publica una foto, completa los datos esenciales y deja que la IA te ayude con la descripcion inicial.",
+      "Publica una foto, completa los datos esenciales y deja que la IA te ayude con la descripción inicial.",
   },
   {
     number: "02",
     title: "Vende o intercambia",
     description:
-      "Decide si la prenda va a venta, intercambio o ambas opciones y conectate con personas reales.",
+      "Decide si la prenda va a venta, intercambio o ambas opciones y conéctate con personas reales.",
   },
   {
     number: "03",
     title: "Cierra con confianza",
     description:
-      "Muestra metodos de pago, reputacion y detalles claros para una experiencia segura y sostenible.",
+      "Muestra métodos de pago, reputación y detalles claros para una experiencia segura y sostenible.",
   },
 ];
 
@@ -28,12 +28,12 @@ export const sustainabilityCards = [
   {
     title: "Menos residuos",
     description:
-      "Cada pieza que vuelve a circular evita que mas ropa termine olvidada o desechada demasiado pronto.",
+      "Cada pieza que vuelve a circular evita que más ropa termine olvidada o desechada demasiado pronto.",
   },
   {
     title: "Huella reducida",
     description:
-      "Comprar moda circular disminuye emisiones y promueve un consumo mucho mas consciente.",
+      "Comprar moda circular disminuye emisiones y promueve un consumo mucho más consciente.",
   },
   {
     title: "Comunidad real",
@@ -46,28 +46,28 @@ export const aiFeatures = [
   {
     title: "Recomienda tu look",
     description:
-      "Combina prendas de tu armario y del catalogo en outfits con mas estilo y mejor contexto.",
+      "Combina prendas de tu armario y del catálogo en outfits con más estilo y mejor contexto.",
   },
   {
     title: "Sugiere el precio",
     description:
-      "Estima un valor competitivo segun categoria, marca, estado y referencias del marketplace.",
+      "Estima un valor competitivo según categoría, marca, estado y referencias del marketplace.",
   },
   {
     title: "Genera la descripcion",
     description:
-      "Crea textos claros, honestos y atractivos para publicar tu prenda mas rapido.",
+      "Crea textos claros, honestos y atractivos para publicar tu prenda más rápido.",
   },
 ];
 
 export const userHighlights = [
   {
-    title: "Vende mas rapido",
+    title: "Vende más rápido",
     description: "Publica, ajusta tu precio y activa tu prenda en minutos.",
   },
   {
-    title: "Recibe reputacion",
-    description: "Las resenas refuerzan confianza y elevan tus conversiones.",
+    title: "Recibe reputación",
+    description: "Las reseñas refuerzan la confianza y elevan tus conversiones.",
   },
   {
     title: "Usa Estilo IA",

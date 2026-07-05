@@ -1,71 +1,52 @@
-import { apiRequest } from "./client";
+import {
+  createProductInFirebase,
+  createProductWithImageInFirebase,
+  deleteProductInFirebase,
+  fetchCatalogFromFirebase,
+  fetchOwnProductsFromFirebase,
+  fetchProductDetailFromFirebase,
+  fetchProductOptionsFromFirebase,
+  updateProductImageInFirebase,
+  updateProductInFirebase,
+  updateProductStatusInFirebase,
+} from "./firebasePrendas";
 
 export function fetchCatalog(filters = {}) {
-  const params = new URLSearchParams();
-
-  if (filters.texto) params.set("texto", filters.texto);
-  if (filters.categoria) params.set("categoria", filters.categoria);
-  if (filters.precioMinimo) params.set("precioMinimo", filters.precioMinimo);
-  if (filters.precioMaximo) params.set("precioMaximo", filters.precioMaximo);
-
-  const query = params.toString();
-  return apiRequest(query ? `/prendas/catalogo/buscar?${query}` : "/prendas/catalogo");
+  return fetchCatalogFromFirebase(filters);
 }
 
 export function fetchProductDetail(id) {
-  return apiRequest(`/prendas/catalogo/${id}`);
+  return fetchProductDetailFromFirebase(id);
 }
 
 export function fetchOwnProducts() {
-  return apiRequest("/prendas/mis-prendas");
+  return fetchOwnProductsFromFirebase();
+}
+
+export function fetchProductOptions() {
+  return fetchProductOptionsFromFirebase();
 }
 
 export function createProduct(payload) {
-  return apiRequest("/prendas", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  return createProductInFirebase(payload);
 }
 
 export function createProductWithImage(payload, imageFile) {
-  const formData = new FormData();
-
-  Object.entries(payload).forEach(([key, value]) => {
-    formData.append(key, value);
-  });
-  formData.append("imagen", imageFile);
-
-  return apiRequest("/prendas/con-imagen", {
-    method: "POST",
-    body: formData,
-  });
+  return createProductWithImageInFirebase(payload, imageFile);
 }
 
 export function updateProduct(id, payload) {
-  return apiRequest(`/prendas/${id}`, {
-    method: "PUT",
-    body: JSON.stringify(payload),
-  });
+  return updateProductInFirebase(id, payload);
 }
 
 export function updateProductImage(id, imageFile) {
-  const formData = new FormData();
-  formData.append("imagen", imageFile);
-
-  return apiRequest(`/prendas/${id}/imagen`, {
-    method: "PATCH",
-    body: formData,
-  });
+  return updateProductImageInFirebase(id, imageFile);
 }
 
 export function deleteProduct(id) {
-  return apiRequest(`/prendas/${id}`, {
-    method: "DELETE",
-  });
+  return deleteProductInFirebase(id);
 }
 
 export function updateProductStatus(id, statusAction) {
-  return apiRequest(`/prendas/${id}/${statusAction}`, {
-    method: "PATCH",
-  });
+  return updateProductStatusInFirebase(id, statusAction);
 }

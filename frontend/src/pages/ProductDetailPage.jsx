@@ -35,9 +35,14 @@ function ProductDetailPage() {
         setProduct(data);
 
         if (data?.usuarioId) {
-          const profile = await fetchPublicProfile(data.usuarioId);
-          if (!isMounted) return;
-          setSellerProfile(profile);
+          try {
+            const profile = await fetchPublicProfile(data.usuarioId);
+            if (!isMounted) return;
+            setSellerProfile(profile);
+          } catch {
+            if (!isMounted) return;
+            setSellerProfile(null);
+          }
         }
 
         setError("");
@@ -123,9 +128,11 @@ function ProductDetailPage() {
           </div>
 
           <div className="detail-actions">
-            <Link to={`/vendedor/${product?.usuarioId}`} className="button-primary">
-              Ver vendedor
-            </Link>
+            {sellerProfile ? (
+              <Link to={`/vendedor/${product?.usuarioId}`} className="button-primary">
+                Ver vendedor
+              </Link>
+            ) : null}
             {whatsappLink ? (
               <a
                 href={whatsappLink}
@@ -142,14 +149,14 @@ function ProductDetailPage() {
 
       <section className="detail-extras">
         <article className="info-panel">
-          <h2>Descripcion</h2>
+          <h2>Descripción</h2>
           <p>
             {product.descripcion}
           </p>
         </article>
 
         <article className="info-panel">
-          <h2>Metodos de pago del vendedor</h2>
+          <h2>Métodos de pago del vendedor</h2>
           <div className="payment-list">
             {sellerPaymentMethods.length ? (
               sellerPaymentMethods.map((method) => (
@@ -160,7 +167,7 @@ function ProductDetailPage() {
               ))
             ) : (
               <div className="payment-item">
-                <strong>Sin metodos visibles</strong>
+              <strong>Sin métodos visibles</strong>
                 <span>Contacta al vendedor</span>
               </div>
             )}
@@ -190,8 +197,8 @@ function ProductDetailPage() {
             ))
           ) : (
             <article className="review-card">
-              <strong>Sin resenas todavia</strong>
-              <p>Este vendedor aun no tiene resenas registradas.</p>
+              <strong>Sin reseñas todavía</strong>
+              <p>Este vendedor aún no tiene reseñas registradas.</p>
             </article>
           )}
         </div>

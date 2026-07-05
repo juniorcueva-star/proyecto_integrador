@@ -1,0 +1,74 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function ownUserId() {
+      return request.auth.uid;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && ownUserId() == userId;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/usuarios/$(ownUserId()))
+        && get(/databases/$(database)/documents/usuarios/$(ownUserId())).data.rol == "ROLE_ADMIN"
+        && get(/databases/$(database)/documents/usuarios/$(ownUserId())).data.eliminado == false;
+    }
+
+    match /usuarios/{userId} {
+      allow create: if isOwner(userId);
+      allow get: if !resource.data.eliminado || isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /prendas/{prendaId} {
+      allow create: if signedIn() && request.resource.data.usuarioId == ownUserId();
+      allow read: if !resource.data.eliminado
+        && (
+          isAdmin()
+          || isOwner(resource.data.usuarioId)
+          || resource.data.estadoPublicacion == "PUBLICADA"
+        );
+      allow update: if isAdmin()
+        || (
+          signedIn()
+          && resource.data.usuarioId == ownUserId()
+          && request.resource.data.usuarioId == resource.data.usuarioId
+        );
+      allow delete: if isAdmin() || (signedIn() && resource.data.usuarioId == ownUserId());
+    }
+
+    match /metodos_pago/{paymentId} {
+      allow create: if signedIn() && request.resource.data.usuarioId == ownUserId();
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.usuarioId == ownUserId())
+        || resource.data.activo == true;
+      allow update: if isAdmin()
+        || (
+          signedIn()
+          && resource.data.usuarioId == ownUserId()
+          && request.resource.data.usuarioId == resource.data.usuarioId
+        );
+      allow delete: if isAdmin() || (signedIn() && resource.data.usuarioId == ownUserId());
+    }
+
+    match /reclamos/{claimId} {
+      allow create: if signedIn() && request.resource.data.usuarioCreadorId == ownUserId();
+      allow read: if isAdmin()
+        || (signedIn() && (
+          resource.data.usuarioCreadorId == ownUserId()
+          || resource.data.usuarioReportadoId == ownUserId()
+        ));
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}

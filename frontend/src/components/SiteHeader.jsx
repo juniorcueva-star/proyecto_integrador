@@ -1,4 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
+import { logoutRequest } from "../api/auth";
 import { clearAuthSession, getAuthSession } from "../utils/authStorage";
 
 function SiteHeader({ mode = "default", showSessionActions = true }) {
@@ -7,10 +8,14 @@ function SiteHeader({ mode = "default", showSessionActions = true }) {
   const showMarketingNav = mode !== "compact";
   const useStaticBrand = mode === "compact" && Boolean(session.token);
 
-  function handleLogout() {
-    clearAuthSession();
-    navigate("/login");
-    window.location.reload();
+  async function handleLogout() {
+    try {
+      await logoutRequest();
+    } finally {
+      clearAuthSession();
+      navigate("/login");
+      window.location.reload();
+    }
   }
 
   return (

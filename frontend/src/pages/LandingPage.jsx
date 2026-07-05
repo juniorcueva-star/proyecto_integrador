@@ -51,7 +51,7 @@ function LandingPage() {
               Empieza gratis
             </Link>
             <Link to="/catalogo" className="button-secondary">
-              Explorar catalogo
+              Explorar catálogo
             </Link>
           </div>
 
@@ -66,7 +66,7 @@ function LandingPage() {
             </article>
             <article>
               <strong>24/7</strong>
-              <span>catalogo disponible</span>
+              <span>catálogo disponible</span>
             </article>
           </div>
         </div>
@@ -78,7 +78,7 @@ function LandingPage() {
             <div className="floating-badge floating-badge-top">Pago seguro y protegido</div>
             <div className="floating-card">
               <strong>Estilo personalizado</strong>
-              <span>La IA sugiere prendas segun tu ocasion, clima y preferencias.</span>
+              <span>La IA sugiere prendas según tu ocasión, clima y preferencias.</span>
             </div>
           </div>
         </div>
@@ -87,7 +87,7 @@ function LandingPage() {
       <section className="featured-section" id="catalogo">
         <div className="section-heading">
           <div>
-            <p className="section-kicker">Recien llegado</p>
+            <p className="section-kicker">Recién llegado</p>
             <h2>Piezas seleccionadas para ti</h2>
           </div>
           <Link to="/catalogo" className="section-link">
@@ -103,15 +103,15 @@ function LandingPage() {
           </div>
         ) : (
           <div className="empty-state">
-            <strong>Aun no hay prendas publicadas.</strong>
-            <p>Cuando existan publicaciones activas en el backend, apareceran aqui.</p>
+            <strong>Aún no hay prendas publicadas.</strong>
+            <p>Cuando existan publicaciones activas en el backend, aparecerán aquí.</p>
           </div>
         )}
       </section>
 
       <section className="steps-section" id="como-funciona">
         <div className="steps-heading">
-          <p className="section-kicker">Como funciona</p>
+          <p className="section-kicker">Cómo funciona</p>
           <h2>Dar una segunda vida nunca fue tan simple</h2>
         </div>
 
@@ -185,7 +185,7 @@ function LandingPage() {
 
       <section className="cta-section">
         <div className="cta-box">
-          <h2>Unete al movimiento de la moda circular</h2>
+          <h2>Únete al movimiento de la moda circular</h2>
           <p>
             Crea tu cuenta gratis y empieza a vender, comprar e intercambiar hoy
             mismo.

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { recommendOutfit } from "../api/ia";
+import { logoutRequest } from "../api/auth";
+import { analyzeGarmentPhoto, generateVirtualTryOn, recommendOutfit } from "../api/ia";
 import {
   createPaymentMethod,
   deletePaymentMethod,
@@ -13,6 +14,7 @@ import {
   deleteProduct,
   fetchCatalog,
   fetchOwnProducts,
+  fetchProductOptions,
   updateProduct,
   updateProductImage,
   updateProductStatus,
@@ -21,18 +23,10 @@ import { createClaim, fetchOwnClaims } from "../api/reclamos";
 import { fetchOwnProfile } from "../api/usuarios";
 import ProductCard from "../components/ProductCard";
 import { garmentOptions } from "../data/staticData";
-import { clearAuthSession } from "../utils/authStorage";
+import { clearAuthSession, getAuthSession } from "../utils/authStorage";
 import { keepDecimal, keepDigits, keepLettersAndSpaces } from "../utils/inputSanitizers";
 import { resolveBackendMedia } from "../utils/media";
 import { adaptProduct, adaptProducts } from "../utils/productAdapter";
-
-const sidebarItems = [
-  { id: "inicio", label: "Inicio" },
-  { id: "perfil", label: "Mi perfil" },
-  { id: "armario", label: "Mi armario" },
-  { id: "agregar", label: "Agregar prenda" },
-  { id: "ia", label: "Recomendacion IA" },
-];
 
 const iaOptions = {
   estilos: ["CASUAL", "FORMAL", "URBANO", "DEPORTIVO", "ELEGANTE"],
@@ -45,8 +39,24 @@ const iaOptions = {
   ],
 };
 
+const defaultBrandOptions = {
+  marcasReconocidas: [
+    "Nike",
+    "Adidas",
+    "Puma",
+    "H&M",
+    "Zara",
+    "Reebok",
+    "Levi's",
+    "Under Armour",
+    "Tommy Hilfiger",
+  ],
+  opcionOtraMarca: "OTRA",
+};
+
 function UserDashboardPage() {
   const navigate = useNavigate();
+  const session = getAuthSession();
   const [activeSection, setActiveSection] = useState("inicio");
   const [profile, setProfile] = useState(null);
   const [ownProducts, setOwnProducts] = useState([]);
@@ -58,6 +68,7 @@ function UserDashboardPage() {
   const [catalogFilters, setCatalogFilters] = useState({
     texto: "",
     categoria: "",
+    genero: "",
     precioMinimo: "",
     precioMaximo: "",
   });
@@ -67,12 +78,25 @@ function UserDashboardPage() {
   const [claimStatus, setClaimStatus] = useState({ type: "", message: "" });
   const [aiStatus, setAiStatus] = useState({ type: "", message: "" });
   const [aiResult, setAiResult] = useState(null);
+  const [tryOnFaceFile, setTryOnFaceFile] = useState(null);
+  const [tryOnFacePreview, setTryOnFacePreview] = useState("");
+  const [selectedTryOnProductIds, setSelectedTryOnProductIds] = useState([]);
+  const [tryOnStatus, setTryOnStatus] = useState({ type: "", message: "" });
+  const [tryOnResult, setTryOnResult] = useState(null);
   const [editingProductId, setEditingProductId] = useState(null);
   const [editProductForm, setEditProductForm] = useState(null);
+  const [productOptions, setProductOptions] = useState(defaultBrandOptions);
+  const [wardrobeView, setWardrobeView] = useState("PUBLICADA");
+  const [aiGarmentFile, setAiGarmentFile] = useState(null);
+  const [aiGarmentPreview, setAiGarmentPreview] = useState("");
+  const [aiGarmentStatus, setAiGarmentStatus] = useState({ type: "", message: "" });
+  const [aiGarmentSuggestion, setAiGarmentSuggestion] = useState(null);
   const [productForm, setProductForm] = useState({
     nombre: "",
     descripcion: "",
-    marca: "",
+    marca: defaultBrandOptions.marcasReconocidas[0],
+    marcaPersonalizada: "",
+    genero: "UNISEX",
     color: "",
     talla: "M",
     categoria: "POLO",
@@ -142,7 +166,6 @@ function UserDashboardPage() {
         );
       } catch (error) {
         if (!isMounted) return;
-        setDashboardError(error.message);
         setPublicCatalog([]);
       }
     }
@@ -157,37 +180,53 @@ function UserDashboardPage() {
     let isMounted = true;
 
     async function hydrateUserModules() {
-      try {
-        const [products, methods, claims, catalog] = await Promise.all([
+      const [productsResult, methodsResult, claimsResult, catalogResult, optionsResult] =
+        await Promise.allSettled([
           fetchOwnProducts(),
           fetchOwnPaymentMethods(),
           fetchOwnClaims(),
           fetchCatalog(),
+          fetchProductOptions(),
         ]);
 
-        if (!isMounted) return;
+      if (!isMounted) return;
 
-        setOwnProducts(adaptProducts(products));
-        setOwnMethods(methods);
-        setOwnClaims(claims);
-        setCatalogTargets(
-          catalog
-            .filter((item) => item.usuarioId !== profile?.usuario?.id)
-            .map((item) => ({
-              id: item.id,
-              nombre: item.nombre,
-              usuarioId: item.usuarioId,
-              nombreVendedor: item.nombreVendedor,
-            })),
+      setOwnProducts(
+        productsResult.status === "fulfilled" ? adaptProducts(productsResult.value) : [],
+      );
+      setOwnMethods(methodsResult.status === "fulfilled" ? methodsResult.value : []);
+      setOwnClaims(claimsResult.status === "fulfilled" ? claimsResult.value : []);
+
+      const options =
+        optionsResult.status === "fulfilled" ? optionsResult.value : defaultBrandOptions;
+      setProductOptions({
+        marcasReconocidas: options?.marcasReconocidas?.length
+          ? options.marcasReconocidas
+          : defaultBrandOptions.marcasReconocidas,
+        opcionOtraMarca: options?.opcionOtraMarca || defaultBrandOptions.opcionOtraMarca,
+      });
+
+      setCatalogTargets(
+        catalogResult.status === "fulfilled"
+          ? catalogResult.value
+              .filter((item) => String(item.usuarioId) !== String(profile?.usuario?.id))
+              .map((item) => ({
+                id: item.id,
+                nombre: item.nombre,
+                usuarioId: item.usuarioId,
+                nombreVendedor: item.nombreVendedor,
+              }))
+          : [],
+      );
+
+      if (productsResult.status === "rejected") {
+        setDashboardError(
+          productsResult.reason?.message || "No se pudieron cargar tus prendas.",
         );
-      } catch (error) {
-        if (!isMounted) return;
-        setDashboardError(error.message);
-        setOwnProducts([]);
-        setOwnMethods([]);
-        setOwnClaims([]);
-        setCatalogTargets([]);
+        return;
       }
+
+      setDashboardError("");
     }
 
     hydrateUserModules();
@@ -195,6 +234,22 @@ function UserDashboardPage() {
       isMounted = false;
     };
   }, [profile?.usuario?.id]);
+
+  useEffect(() => {
+    return () => {
+      if (aiGarmentPreview) {
+        URL.revokeObjectURL(aiGarmentPreview);
+      }
+    };
+  }, [aiGarmentPreview]);
+
+  useEffect(() => {
+    return () => {
+      if (tryOnFacePreview) {
+        URL.revokeObjectURL(tryOnFacePreview);
+      }
+    };
+  }, [tryOnFacePreview]);
 
   const stats = profile?.estadisticas
     ? [
@@ -205,12 +260,18 @@ function UserDashboardPage() {
       ]
     : [
         { label: "Prendas publicadas", value: String(ownProducts.length) },
-        { label: "Metodos de pago", value: String(ownMethods.length) },
+        { label: "Métodos de pago", value: String(ownMethods.length) },
         { label: "Reclamos", value: String(ownClaims.length) },
-        { label: "Catalogo visible", value: String(catalogTargets.length) },
+        { label: "Catálogo visible", value: String(catalogTargets.length) },
       ];
 
-  const displayName = profile?.usuario?.nombre || "Mi cuenta";
+  const fallbackProfile = {
+    nombre: session.nombre || "Mi cuenta",
+    email: session.email || "No disponible",
+    telefono: session.telefono || "No registrado",
+  };
+
+  const displayName = profile?.usuario?.nombre || fallbackProfile.nombre;
   const avatarLabel = displayName
     .split(" ")
     .slice(0, 2)
@@ -219,8 +280,12 @@ function UserDashboardPage() {
     .toUpperCase();
 
   function handleLogout() {
-    clearAuthSession();
-    navigate("/login", { replace: true });
+    logoutRequest()
+      .catch(() => null)
+      .finally(() => {
+        clearAuthSession();
+        navigate("/login", { replace: true });
+      });
   }
 
   function handleCatalogSearch(event) {
@@ -229,12 +294,12 @@ function UserDashboardPage() {
     const max = catalogFilters.precioMaximo ? Number(catalogFilters.precioMaximo) : null;
 
     if ((min !== null && min < 1) || (max !== null && max < 1)) {
-      setDashboardError("El precio minimo y maximo deben ser al menos S/ 1.");
+      setDashboardError("El precio mínimo y máximo deben ser al menos S/ 1.");
       return;
     }
 
     if (min !== null && max !== null && min > max) {
-      setDashboardError("El precio minimo no puede ser mayor que el precio maximo.");
+      setDashboardError("El precio mínimo no puede ser mayor que el precio máximo.");
       return;
     }
 
@@ -242,6 +307,7 @@ function UserDashboardPage() {
     setActiveCatalogFilters({
       texto: catalogFilters.texto.trim(),
       categoria: catalogFilters.categoria,
+      genero: catalogFilters.genero,
       precioMinimo: catalogFilters.precioMinimo,
       precioMaximo: catalogFilters.precioMaximo,
     });
@@ -251,6 +317,7 @@ function UserDashboardPage() {
     const emptyFilters = {
       texto: "",
       categoria: "",
+      genero: "",
       precioMinimo: "",
       precioMaximo: "",
     };
@@ -258,15 +325,148 @@ function UserDashboardPage() {
     setActiveCatalogFilters({});
   }
 
+  function handleGenderCatalog(genero) {
+    setActiveSection("inicio");
+    setDashboardError("");
+    setCatalogFilters((current) => ({ ...current, genero }));
+    setActiveCatalogFilters((current) => ({ ...current, genero }));
+  }
+
+  function isRecognizedBrand(brand) {
+    return productOptions.marcasReconocidas.some(
+      (option) => option.toLowerCase() === String(brand || "").trim().toLowerCase(),
+    );
+  }
+
+  function resolveBrandPayload(form) {
+    const selectedBrand = form.marca || productOptions.marcasReconocidas[0] || "";
+    const customBrand = (form.marcaPersonalizada || "").trim();
+
+    return {
+      marca: selectedBrand,
+      marcaPersonalizada: selectedBrand === productOptions.opcionOtraMarca ? customBrand : "",
+    };
+  }
+
+  function normalizeOption(value, options, fallback) {
+    const normalized = String(value || "").trim().toUpperCase();
+    return options.find((option) => option.toUpperCase() === normalized) || fallback;
+  }
+
+  function applySuggestedBrand(brand) {
+    const value = String(brand || "").trim();
+    if (!value) return {};
+
+    if (isRecognizedBrand(value)) {
+      const recognized = productOptions.marcasReconocidas.find(
+        (option) => option.toLowerCase() === value.toLowerCase(),
+      );
+      return { marca: recognized || value, marcaPersonalizada: "" };
+    }
+
+    return {
+      marca: productOptions.opcionOtraMarca,
+      marcaPersonalizada: value,
+    };
+  }
+
+  function handleAiGarmentFileChange(file) {
+    if (aiGarmentPreview) {
+      URL.revokeObjectURL(aiGarmentPreview);
+    }
+
+    setAiGarmentFile(file || null);
+    setAiGarmentSuggestion(null);
+    setAiGarmentStatus({ type: "", message: "" });
+    setAiGarmentPreview(file ? URL.createObjectURL(file) : "");
+  }
+
+  async function handleAnalyzeGarmentWithIa() {
+    if (!aiGarmentFile) {
+      setAiGarmentStatus({ type: "error", message: "Primero sube una foto de tu prenda." });
+      return;
+    }
+
+    setAiGarmentStatus({ type: "", message: "" });
+
+    try {
+      const suggestion = await analyzeGarmentPhoto(aiGarmentFile);
+      const brandPatch = applySuggestedBrand(suggestion.marca);
+
+      setAiGarmentSuggestion(suggestion);
+      setProductForm((current) => ({
+        ...current,
+        nombre: suggestion.nombre || current.nombre,
+        descripcion: suggestion.descripcion || current.descripcion,
+        ...brandPatch,
+        color: suggestion.color || current.color,
+        talla: normalizeOption(suggestion.talla, garmentOptions.tallas, current.talla),
+        categoria: normalizeOption(suggestion.categoria, garmentOptions.categorias, current.categoria),
+        estadoFisico: normalizeOption(
+          suggestion.estadoFisico,
+          garmentOptions.estadosFisicos,
+          current.estadoFisico,
+        ),
+        precio:
+          suggestion.precio !== undefined && suggestion.precio !== null
+            ? String(suggestion.precio)
+            : current.precio,
+        tipoPublicacion: normalizeOption(
+          suggestion.tipoPublicacion,
+          garmentOptions.tiposPublicacion,
+          current.tipoPublicacion,
+        ),
+      }));
+      setAiGarmentStatus({
+        type: "success",
+        message: "La IA completo los campos posibles. Revisa y ajusta antes de publicar.",
+      });
+    } catch (error) {
+      setAiGarmentStatus({ type: "error", message: error.message });
+    }
+  }
+
+  async function handleCopyAiGarmentImage() {
+    if (!aiGarmentFile) {
+      setAiGarmentStatus({ type: "error", message: "Sube una foto para copiarla al formulario." });
+      return;
+    }
+
+    setProductForm((current) => ({ ...current, imagen: aiGarmentFile }));
+
+    try {
+      if (navigator.clipboard && window.ClipboardItem) {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            [aiGarmentFile.type || "image/png"]: aiGarmentFile,
+          }),
+        ]);
+      }
+
+      setAiGarmentStatus({
+        type: "success",
+        message: "Imagen copiada y colocada en Imagen de la prenda.",
+      });
+    } catch {
+      setAiGarmentStatus({
+        type: "success",
+        message: "Imagen colocada en Imagen de la prenda. Tu navegador no permitió copiar al portapapeles.",
+      });
+    }
+  }
+
   async function handleCreateProduct(event) {
     event.preventDefault();
     setProductStatus({ type: "", message: "" });
 
     try {
+      const brandPayload = resolveBrandPayload(productForm);
       const productPayload = {
         nombre: productForm.nombre,
         descripcion: productForm.descripcion,
-        marca: productForm.marca,
+        marca: brandPayload.marca,
+        marcaPersonalizada: brandPayload.marcaPersonalizada,
+        genero: productForm.genero,
         color: productForm.color,
         talla: productForm.talla,
         categoria: productForm.categoria,
@@ -283,7 +483,9 @@ function UserDashboardPage() {
       setProductForm({
         nombre: "",
         descripcion: "",
-        marca: "",
+        marca: productOptions.marcasReconocidas[0] || defaultBrandOptions.marcasReconocidas[0],
+        marcaPersonalizada: "",
+        genero: "UNISEX",
         color: "",
         talla: "M",
         categoria: "POLO",
@@ -294,6 +496,7 @@ function UserDashboardPage() {
         imagen: null,
       });
       setProductStatus({ type: "success", message: "Prenda creada correctamente." });
+      setWardrobeView("PUBLICADA");
       setActiveSection("armario");
     } catch (error) {
       setProductStatus({ type: "error", message: error.message });
@@ -365,14 +568,19 @@ function UserDashboardPage() {
   }
 
   function handleStartEditProduct(product) {
+    const originalBrand = product.marca || product.brand || "";
+    const recognizedBrand = isRecognizedBrand(originalBrand);
+
     setEditingProductId(product.id);
     setEditProductForm({
       nombre: product.nombre || product.name || "",
       descripcion: product.descripcion || "",
-      marca: product.marca || product.brand || "",
+      marca: recognizedBrand ? originalBrand : productOptions.opcionOtraMarca,
+      marcaPersonalizada: recognizedBrand ? "" : originalBrand,
       color: product.color || "",
       talla: product.talla || product.size || "M",
       categoria: product.categoria || product.category || "POLO",
+      genero: product.genero || "UNISEX",
       estadoFisico: product.estadoFisico || "BUEN_ESTADO",
       precio: product.precio !== undefined && product.precio !== null ? String(product.precio) : "",
       tipoPublicacion: product.tipoPublicacion || "VENTA",
@@ -395,10 +603,13 @@ function UserDashboardPage() {
     setProductStatus({ type: "", message: "" });
 
     try {
+      const brandPayload = resolveBrandPayload(editProductForm);
       const payload = {
         nombre: editProductForm.nombre,
         descripcion: editProductForm.descripcion,
-        marca: editProductForm.marca,
+        marca: brandPayload.marca,
+        marcaPersonalizada: brandPayload.marcaPersonalizada,
+        genero: editProductForm.genero,
         color: editProductForm.color,
         talla: editProductForm.talla,
         categoria: editProductForm.categoria,
@@ -491,9 +702,75 @@ function UserDashboardPage() {
         estaturaCm: Number(outfitForm.estaturaCm),
       });
       setAiResult(data);
-      setAiStatus({ type: "success", message: "Recomendacion generada." });
+      setSelectedTryOnProductIds([]);
+      setTryOnResult(null);
+      setTryOnStatus({ type: "", message: "" });
+      setAiStatus({ type: "success", message: "Recomendación generada." });
     } catch (error) {
       setAiStatus({ type: "error", message: error.message });
+    }
+  }
+
+  function handleTryOnFaceFileChange(file) {
+    if (tryOnFacePreview) {
+      URL.revokeObjectURL(tryOnFacePreview);
+    }
+
+    setTryOnFaceFile(file || null);
+    setTryOnFacePreview(file ? URL.createObjectURL(file) : "");
+    setTryOnResult(null);
+    setTryOnStatus({ type: "", message: "" });
+  }
+
+  function handleToggleTryOnProduct(id) {
+    setSelectedTryOnProductIds((current) => {
+      if (current.includes(id)) {
+        return current.filter((item) => item !== id);
+      }
+
+      if (current.length >= 2) {
+        setTryOnStatus({ type: "error", message: "Solo puedes seleccionar 2 prendas para la prueba virtual." });
+        return current;
+      }
+
+      setTryOnStatus({ type: "", message: "" });
+      return [...current, id];
+    });
+  }
+
+  async function handleGenerateVirtualTryOn() {
+    if (!tryOnFaceFile) {
+      setTryOnStatus({ type: "error", message: "Sube una foto frontal de tu rostro o medio cuerpo." });
+      return;
+    }
+
+    if (selectedTryOnProductIds.length !== 2) {
+      setTryOnStatus({ type: "error", message: "Selecciona exactamente 2 prendas recomendadas." });
+      return;
+    }
+
+    const validationMessage = validateIaProfile();
+    if (validationMessage) {
+      setTryOnStatus({ type: "error", message: validationMessage });
+      return;
+    }
+
+    try {
+      const result = await generateVirtualTryOn({
+        fotoRostro: tryOnFaceFile,
+        estaturaCm: Number(outfitForm.estaturaCm),
+        contextura: outfitForm.contextura,
+        prendaIds: selectedTryOnProductIds,
+      });
+      setTryOnResult(result);
+      setTryOnStatus({
+        type: result.imagenUrl ? "success" : "error",
+        message: result.imagenUrl
+          ? "Prueba virtual generada."
+          : "Flujo listo. Falta conectar la API de generación de imagen para devolver la foto final.",
+      });
+    } catch (error) {
+      setTryOnStatus({ type: "error", message: error.message });
     }
   }
 
@@ -505,55 +782,99 @@ function UserDashboardPage() {
     ) : null;
   }
 
+  const visibleCatalog = activeCatalogFilters.genero
+    ? publicCatalog.filter((product) => product.genero === activeCatalogFilters.genero)
+    : publicCatalog;
+  const publishedProducts = ownProducts.filter((product) => product.estadoPublicacion === "PUBLICADA");
+  const soldProducts = ownProducts.filter((product) => product.estadoPublicacion === "VENDIDA");
+  const otherProducts = ownProducts.filter(
+    (product) => !["PUBLICADA", "VENDIDA"].includes(product.estadoPublicacion),
+  );
+  const displayedWardrobeProducts =
+    wardrobeView === "VENDIDA"
+      ? soldProducts
+      : wardrobeView === "OTRAS"
+        ? otherProducts
+        : publishedProducts;
+  const personalSections = [
+    { id: "perfil", label: "Mi perfil" },
+    { id: "agregar", label: "Publicar prenda" },
+    { id: "armario", label: "Mi armario" },
+  ];
+  const inPersonalPanel = personalSections.some((section) => section.id === activeSection);
   const recommendedProducts = adaptProducts(aiResult?.referenciasCatalogo || []);
   const recommendationReasons = aiResult?.razones || [];
   const suggestedGarments = aiResult?.prendasSugeridas || [];
 
   return (
-    <section className="user-dashboard-shell">
-      <aside className="user-dashboard-sidebar">
-        <div className="user-dashboard-brand">
-          <h1>Estilo IA</h1>
-          <p>Moda sostenible</p>
-        </div>
+    <section className="user-dashboard-shell user-shop-shell">
+      {!inPersonalPanel ? (
+        <header className="user-shop-header">
+          <button type="button" className="user-shop-brand" onClick={() => handleGenderCatalog("")}>
+            Estilo IA
+          </button>
 
-        <nav className="user-dashboard-nav" aria-label="Secciones del dashboard">
-          {sidebarItems.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={item.id === activeSection ? "user-nav-item user-nav-item-active" : "user-nav-item"}
-              onClick={() => setActiveSection(item.id)}
-            >
-              {item.label}
+          <nav className="user-shop-nav" aria-label="Catálogo principal">
+            <button type="button" onClick={() => handleGenderCatalog("HOMBRE")}>
+              Hombre
             </button>
-          ))}
-        </nav>
+            <button type="button" onClick={() => handleGenderCatalog("MUJER")}>
+              Mujer
+            </button>
+            <button type="button" onClick={() => handleGenderCatalog("UNISEX")}>
+              Unisex
+            </button>
+            <button type="button" onClick={() => setActiveSection("ia")}>
+              Recomendación IA
+            </button>
+          </nav>
 
-        <button type="button" className="user-logout-button" onClick={handleLogout}>
-          <span>Cerrar sesion</span>
-          <svg
-            className="logout-icon"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <path d="M10 4H5.75A1.75 1.75 0 0 0 4 5.75v12.5C4 19.22 4.78 20 5.75 20H10" />
-            <path d="M15 8l4 4-4 4" />
-            <path d="M8.5 12H19" />
-          </svg>
-        </button>
-      </aside>
-
-      <div className="user-dashboard-main">
-        <header className="user-dashboard-top">
-          <div>
-            <p className="section-kicker">Panel de usuario</p>
-            <h2>{displayName}</h2>
-            <span>Gestiona tu perfil, armario y recomendaciones IA desde un solo lugar.</span>
+          <div className="user-shop-actions">
+            <button type="button" className="publish-entry-button" onClick={() => setActiveSection("perfil")}>
+              <span>{avatarLabel || "U"}</span>
+              Publique aquí
+            </button>
+            <button type="button" className="shop-logout-button" onClick={handleLogout}>
+              Salir
+            </button>
           </div>
-          <div className="user-dashboard-avatar">{avatarLabel || "U"}</div>
         </header>
+      ) : null}
+
+      <div className="user-dashboard-main user-shop-main">
+        {inPersonalPanel ? (
+          <>
+            <div className="user-panel-back-row">
+              <button type="button" className="button-secondary user-panel-back-button" onClick={() => setActiveSection("inicio")}>
+                Volver
+              </button>
+            </div>
+
+            <header className="user-dashboard-top user-personal-top">
+              <div>
+                <p className="section-kicker">Panel personal</p>
+                <h2>Hola, {displayName}</h2>
+                <span>Administra tu información, publica prendas y revisa tu armario.</span>
+              </div>
+              <div className="user-dashboard-avatar">{avatarLabel || "U"}</div>
+            </header>
+          </>
+        ) : null}
+
+        {inPersonalPanel ? (
+          <nav className="personal-tabs" aria-label="Panel personal">
+            {personalSections.map((section) => (
+              <button
+                key={section.id}
+                type="button"
+                className={activeSection === section.id ? "personal-tab personal-tab-active" : "personal-tab"}
+                onClick={() => setActiveSection(section.id)}
+              >
+                {section.label}
+              </button>
+            ))}
+          </nav>
+        ) : null}
 
         {dashboardError ? (
           <div className="form-message form-message-error dashboard-message">
@@ -574,7 +895,7 @@ function UserDashboardPage() {
                   Buscar
                   <input
                     type="text"
-                    placeholder="Nombre, marca o descripcion"
+                    placeholder="Nombre, marca o descripción"
                     value={catalogFilters.texto}
                     onChange={(event) =>
                       setCatalogFilters((current) => ({
@@ -585,7 +906,7 @@ function UserDashboardPage() {
                   />
                 </label>
                 <label>
-                  Categoria
+                  Categoría
                   <select
                     value={catalogFilters.categoria}
                     onChange={(event) =>
@@ -601,7 +922,7 @@ function UserDashboardPage() {
                   </select>
                 </label>
                 <label>
-                  Precio minimo
+                  Precio mínimo
                   <input
                     type="text"
                     inputMode="decimal"
@@ -615,7 +936,7 @@ function UserDashboardPage() {
                   />
                 </label>
                 <label>
-                  Precio maximo
+                  Precio máximo
                   <input
                     type="text"
                     inputMode="decimal"
@@ -638,16 +959,16 @@ function UserDashboardPage() {
                 </div>
               </form>
 
-              {publicCatalog.length ? (
+              {visibleCatalog.length ? (
                 <div className="product-grid user-dashboard-products">
-                  {publicCatalog.map((product) => (
+                  {visibleCatalog.map((product) => (
                     <ProductCard key={product.id} product={product} />
                   ))}
                 </div>
               ) : (
                 <div className="empty-state">
                   <strong>No hay prendas publicadas por ahora.</strong>
-                  <p>Cuando existan publicaciones activas o coincidencias con tu busqueda, apareceran aqui.</p>
+                  <p>Cuando existan publicaciones activas o coincidencias con tu búsqueda, aparecerán aquí.</p>
                 </div>
               )}
             </section>
@@ -659,24 +980,24 @@ function UserDashboardPage() {
             <section className="dashboard-panel user-section-panel">
               <div className="panel-head">
                 <h2>Mi perfil</h2>
-                <span>Informacion, pagos y reclamos</span>
+                <span>Información, pagos y reclamos</span>
               </div>
 
               <div className="user-summary-grid">
                 <article className="user-summary-card">
                   <strong>Nombre</strong>
-                  <p>{profile?.usuario?.nombre || "No disponible"}</p>
+                  <p>{profile?.usuario?.nombre || fallbackProfile.nombre}</p>
                 </article>
                 <article className="user-summary-card">
                   <strong>Email</strong>
-                  <p>{profile?.usuario?.email || "No disponible"}</p>
+                  <p>{profile?.usuario?.email || fallbackProfile.email}</p>
                 </article>
                 <article className="user-summary-card">
-                  <strong>Telefono</strong>
-                  <p>{profile?.usuario?.telefono || "No registrado"}</p>
+                  <strong>Teléfono</strong>
+                  <p>{profile?.usuario?.telefono || fallbackProfile.telefono}</p>
                 </article>
                 <article className="user-summary-card">
-                  <strong>Calificacion</strong>
+                  <strong>Calificación</strong>
                   <p>{profile?.promedioCalificacion ?? "Sin datos"}</p>
                 </article>
               </div>
@@ -692,8 +1013,8 @@ function UserDashboardPage() {
                 {ownProducts.length === 0 ? (
                   <article className="mini-item">
                     <div>
-                      <strong>Aun no tienes prendas</strong>
-                      <p>Cuando publiques una prenda, aparecera tambien en esta seccion.</p>
+                      <strong>Aún no tienes prendas</strong>
+                      <p>Cuando publiques una prenda, aparecerá también en esta sección.</p>
                     </div>
                     <span>0</span>
                   </article>
@@ -716,8 +1037,8 @@ function UserDashboardPage() {
             <div className="dashboard-split user-dashboard-split">
               <section className="dashboard-panel user-section-panel">
                 <div className="panel-head">
-                  <h2>Metodos de pago</h2>
-                  <span>Activa o registra tus metodos</span>
+                <h2>Métodos de pago</h2>
+                  <span>Activa o registra tus métodos</span>
                 </div>
 
                 <div className="mini-list">
@@ -748,8 +1069,8 @@ function UserDashboardPage() {
                   {ownMethods.length === 0 ? (
                     <article className="mini-item">
                       <div>
-                        <strong>Sin metodos registrados</strong>
-                        <p>Agrega Yape, Plin, transferencia u otro metodo.</p>
+                        <strong>Sin métodos registrados</strong>
+                        <p>Agrega Yape, Plin, transferencia u otro método.</p>
                       </div>
                       <span>0</span>
                     </article>
@@ -812,7 +1133,7 @@ function UserDashboardPage() {
                   {renderStatusMessage(paymentStatus)}
 
                   <button type="submit" className="button-primary module-submit">
-                    Guardar metodo
+                    Guardar método
                   </button>
                 </form>
               </section>
@@ -827,8 +1148,8 @@ function UserDashboardPage() {
                   {ownClaims.length === 0 ? (
                     <article className="mini-item">
                       <div>
-                        <strong>Aun no registraste reclamos</strong>
-                        <p>Cuando envies uno, aparecera aqui con su estado.</p>
+                        <strong>Aún no registraste reclamos</strong>
+                        <p>Cuando envíes uno, aparecerá aquí con su estado.</p>
                       </div>
                       <span>Sin casos</span>
                     </article>
@@ -848,7 +1169,7 @@ function UserDashboardPage() {
                 <form className="module-form" onSubmit={handleCreateClaim}>
                   <div className="module-form-grid">
                     <label>
-                      Prenda del catalogo
+                      Prenda del catálogo
                       <select
                         value={claimForm.prendaId}
                         onChange={(event) => handleSelectClaimProduct(event.target.value)}
@@ -866,7 +1187,7 @@ function UserDashboardPage() {
                       <input
                         value={claimForm.usuarioReportadoId}
                         readOnly
-                        placeholder="Se completa automaticamente"
+                        placeholder="Se completa automáticamente"
                       />
                     </label>
                     <label className="full-span">
@@ -885,7 +1206,7 @@ function UserDashboardPage() {
                       </select>
                     </label>
                     <label className="full-span">
-                      Descripcion
+                      Descripción
                       <textarea
                         rows="4"
                         value={claimForm.descripcion}
@@ -919,17 +1240,53 @@ function UserDashboardPage() {
 
             {renderStatusMessage(productStatus)}
 
+            <div className="wardrobe-status-tabs">
+              <button
+                type="button"
+                className={wardrobeView === "PUBLICADA" ? "wardrobe-status-tab wardrobe-status-tab-active" : "wardrobe-status-tab"}
+                onClick={() => setWardrobeView("PUBLICADA")}
+              >
+                Publicadas <span>{publishedProducts.length}</span>
+              </button>
+              <button
+                type="button"
+                className={wardrobeView === "VENDIDA" ? "wardrobe-status-tab wardrobe-status-tab-active" : "wardrobe-status-tab"}
+                onClick={() => setWardrobeView("VENDIDA")}
+              >
+                Vendidas <span>{soldProducts.length}</span>
+              </button>
+              <button
+                type="button"
+                className={wardrobeView === "OTRAS" ? "wardrobe-status-tab wardrobe-status-tab-active" : "wardrobe-status-tab"}
+                onClick={() => setWardrobeView("OTRAS")}
+              >
+                Otras <span>{otherProducts.length}</span>
+              </button>
+            </div>
+
             <div className="wardrobe-grid">
-              {ownProducts.length === 0 ? (
+              {displayedWardrobeProducts.length === 0 ? (
                 <article className="mini-item wardrobe-empty-card">
                   <div>
-                    <strong>Aun no tienes prendas</strong>
-                    <p>Publica una prenda desde la seccion Agregar prenda.</p>
+                    <strong>
+                      {wardrobeView === "VENDIDA"
+                        ? "No tienes prendas vendidas"
+                        : wardrobeView === "OTRAS"
+                          ? "No tienes otras prendas"
+                          : "No tienes prendas publicadas"}
+                    </strong>
+                    <p>
+                      {wardrobeView === "VENDIDA"
+                        ? "Cuando marques una prenda como vendida, aparecerá aquí."
+                        : wardrobeView === "OTRAS"
+                          ? "Aquí aparecerán prendas pausadas o intercambiadas."
+                        : "Publica una prenda desde la sección Publicar prenda."}
+                    </p>
                   </div>
                   <span>0</span>
                 </article>
               ) : (
-                ownProducts.map((product) => (
+                displayedWardrobeProducts.map((product) => (
                   <article key={product.id} className="wardrobe-card">
                     <div
                       className="wardrobe-card-media"
@@ -1019,18 +1376,60 @@ function UserDashboardPage() {
                           </label>
                           <label>
                             Marca
-                            <input
+                            <select
                               value={editProductForm.marca}
                               onChange={(event) =>
                                 setEditProductForm((current) => ({
                                   ...current,
                                   marca: event.target.value,
+                                  marcaPersonalizada:
+                                    event.target.value === productOptions.opcionOtraMarca
+                                      ? current.marcaPersonalizada
+                                      : "",
                                 }))
                               }
-                            />
+                            >
+                              {productOptions.marcasReconocidas.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                              <option value={productOptions.opcionOtraMarca}>Otros</option>
+                            </select>
+                          </label>
+                          {editProductForm.marca === productOptions.opcionOtraMarca ? (
+                            <label>
+                              Otra marca
+                              <input
+                                value={editProductForm.marcaPersonalizada || ""}
+                                onChange={(event) =>
+                                  setEditProductForm((current) => ({
+                                    ...current,
+                                    marcaPersonalizada: event.target.value,
+                                  }))
+                                }
+                                placeholder="Escribe la marca"
+                              />
+                            </label>
+                          ) : null}
+                          <label>
+                            Género
+                            <select
+                              value={editProductForm.genero}
+                              onChange={(event) =>
+                                setEditProductForm((current) => ({
+                                  ...current,
+                                  genero: event.target.value,
+                                }))
+                              }
+                            >
+                              <option value="HOMBRE">Hombre</option>
+                              <option value="MUJER">Mujer</option>
+                              <option value="UNISEX">Unisex</option>
+                            </select>
                           </label>
                           <label className="full-span">
-                            Descripcion
+                            Descripción
                             <textarea
                               rows="3"
                               value={editProductForm.descripcion}
@@ -1087,7 +1486,7 @@ function UserDashboardPage() {
                             </select>
                           </label>
                           <label>
-                            Categoria
+                            Categoría
                             <select
                               value={editProductForm.categoria}
                               onChange={(event) =>
@@ -1105,7 +1504,7 @@ function UserDashboardPage() {
                             </select>
                           </label>
                           <label>
-                            Estado fisico
+                            Estado físico
                             <select
                               value={editProductForm.estadoFisico}
                               onChange={(event) =>
@@ -1123,7 +1522,7 @@ function UserDashboardPage() {
                             </select>
                           </label>
                           <label>
-                            Tipo publicacion
+                            Tipo publicación
                             <select
                               value={editProductForm.tipoPublicacion}
                               onChange={(event) =>
@@ -1198,9 +1597,60 @@ function UserDashboardPage() {
         {activeSection === "agregar" ? (
           <section className="dashboard-panel user-section-panel">
             <div className="panel-head">
-              <h2>Agregar prenda</h2>
+              <h2>Publicar prenda</h2>
               <span>Completa y publica de forma ordenada</span>
             </div>
+
+            <section className="ai-garment-assistant">
+              <div className="ai-garment-copy">
+                <p className="section-kicker">Deja que la IA lo haga por ti</p>
+                <h3>Convierte una foto simple en una publicación lista</h3>
+                <p>
+                  Sube una foto de tu prenda para que la IA sugiera descripción,
+                  color, categoría, estado, precio y marca cuando pueda reconocerla.
+                </p>
+                <div className="ai-garment-actions">
+                  <label className="ai-upload-control">
+                    Subir foto
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/webp"
+                      onChange={(event) => handleAiGarmentFileChange(event.target.files?.[0] || null)}
+                    />
+                  </label>
+                  <button type="button" className="button-secondary" onClick={handleAnalyzeGarmentWithIa}>
+                    Analizar con IA
+                  </button>
+                  <button type="button" className="button-primary" onClick={handleCopyAiGarmentImage}>
+                    Copiar imagen
+                  </button>
+                </div>
+                {renderStatusMessage(aiGarmentStatus)}
+              </div>
+
+              <div className="ai-garment-preview-card">
+                <div
+                  className={`ai-garment-preview ${aiGarmentPreview ? "ai-garment-preview-ready" : ""}`}
+                  style={
+                    aiGarmentPreview
+                      ? {
+                          backgroundImage: `url("${aiGarmentPreview}")`,
+                        }
+                      : undefined
+                  }
+                >
+                  {!aiGarmentPreview ? <span>Vista previa IA</span> : null}
+                </div>
+                <div className="ai-garment-preview-meta">
+                  <strong>{aiGarmentSuggestion?.nombre || "Imagen para catálogo"}</strong>
+                  <span>
+                    {aiGarmentFile
+                      ? "Lista para usar en Imagen de la prenda"
+                      : "Aquí aparecerá la prenda subida"}
+                  </span>
+                </div>
+              </div>
+            </section>
 
             <form className="module-form" onSubmit={handleCreateProduct}>
               <div className="module-form-grid">
@@ -1218,15 +1668,57 @@ function UserDashboardPage() {
                 </label>
                 <label>
                   Marca
-                  <input
+                  <select
                     value={productForm.marca}
                     onChange={(event) =>
-                      setProductForm((current) => ({ ...current, marca: event.target.value }))
+                      setProductForm((current) => ({
+                        ...current,
+                        marca: event.target.value,
+                        marcaPersonalizada:
+                          event.target.value === productOptions.opcionOtraMarca
+                            ? current.marcaPersonalizada
+                            : "",
+                      }))
                     }
-                  />
+                  >
+                    {productOptions.marcasReconocidas.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                    <option value={productOptions.opcionOtraMarca}>Otros</option>
+                  </select>
+                </label>
+                {productForm.marca === productOptions.opcionOtraMarca ? (
+                  <label>
+                    Otra marca
+                    <input
+                      value={productForm.marcaPersonalizada}
+                      onChange={(event) =>
+                        setProductForm((current) => ({
+                          ...current,
+                          marcaPersonalizada: event.target.value,
+                        }))
+                      }
+                      placeholder="Escribe la marca"
+                    />
+                  </label>
+                ) : null}
+                <label>
+                  Género
+                  <select
+                    value={productForm.genero}
+                    onChange={(event) =>
+                      setProductForm((current) => ({ ...current, genero: event.target.value }))
+                    }
+                  >
+                    <option value="HOMBRE">Hombre</option>
+                    <option value="MUJER">Mujer</option>
+                    <option value="UNISEX">Unisex</option>
+                  </select>
                 </label>
                 <label className="full-span">
-                  Descripcion
+                  Descripción
                   <textarea
                     rows="4"
                     value={productForm.descripcion}
@@ -1277,7 +1769,7 @@ function UserDashboardPage() {
                   </select>
                 </label>
                 <label>
-                  Categoria
+                  Categoría
                   <select
                     value={productForm.categoria}
                     onChange={(event) =>
@@ -1295,7 +1787,7 @@ function UserDashboardPage() {
                   </select>
                 </label>
                 <label>
-                  Estado fisico
+                  Estado físico
                   <select
                     value={productForm.estadoFisico}
                     onChange={(event) =>
@@ -1313,7 +1805,7 @@ function UserDashboardPage() {
                   </select>
                 </label>
                 <label>
-                  Tipo publicacion
+                  Tipo publicación
                   <select
                     value={productForm.tipoPublicacion}
                     onChange={(event) =>
@@ -1376,13 +1868,13 @@ function UserDashboardPage() {
         {activeSection === "ia" ? (
           <section className="dashboard-panel user-section-panel user-section-panel-ia">
             <div className="panel-head">
-              <h2>Recomendacion IA</h2>
+              <h2>Recomendación IA</h2>
               <span>Sugerencias basadas en estilo, ocasion y clima</span>
             </div>
 
             <div className="user-ia-intro">
               <article className="user-summary-card">
-                <strong>Recomendacion de outfit</strong>
+                <strong>Recomendación de outfit</strong>
                 <p>Completa tu perfil y recibe prendas recomendadas que encajen con tu necesidad.</p>
               </article>
             </div>
@@ -1405,7 +1897,7 @@ function UserDashboardPage() {
                   </select>
                 </label>
                 <label>
-                  Ocasion
+                  Ocasión
                   <select
                     value={outfitForm.ocasion}
                     onChange={(event) =>
@@ -1493,7 +1985,7 @@ function UserDashboardPage() {
 
                 {recommendationReasons.length ? (
                   <div className="result-section">
-                    <h3>Por que te las recomendamos</h3>
+                    <h3>Por qué te las recomendamos</h3>
                     <ul className="result-list">
                       {recommendationReasons.map((reason) => (
                         <li key={reason}>{reason}</li>
@@ -1505,18 +1997,97 @@ function UserDashboardPage() {
                 {recommendedProducts.length ? (
                   <div className="result-section">
                     <h3>Prendas recomendadas</h3>
-                    <div className="product-grid user-dashboard-products">
+                    <p className="tryon-helper">Selecciona exactamente 2 prendas para generar la prueba virtual.</p>
+                    <div className="product-grid user-dashboard-products tryon-select-grid">
                       {recommendedProducts.map((product) => (
-                        <ProductCard key={product.id} product={product} />
+                        <article
+                          key={product.id}
+                          className={
+                            selectedTryOnProductIds.includes(product.id)
+                              ? "tryon-select-card tryon-select-card-active"
+                              : "tryon-select-card"
+                          }
+                        >
+                          <ProductCard product={product} />
+                          <button
+                            type="button"
+                            className="tryon-select-button"
+                            onClick={() => handleToggleTryOnProduct(product.id)}
+                          >
+                            {selectedTryOnProductIds.includes(product.id) ? "Seleccionada" : "Elegir para prueba"}
+                          </button>
+                        </article>
                       ))}
                     </div>
+                  </div>
+                ) : null}
+
+                {recommendedProducts.length ? (
+                  <div className="virtual-tryon-panel">
+                    <div className="virtual-tryon-copy">
+                      <h3>Prueba virtual con tu rostro</h3>
+                      <p>
+                        Sube una foto frontal o de medio cuerpo. La prueba usará tu estatura,
+                        contextura y las 2 prendas seleccionadas.
+                      </p>
+
+                      <div className="virtual-tryon-actions">
+                        <label className="ai-upload-control">
+                          Subir rostro
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/webp"
+                            onChange={(event) => handleTryOnFaceFileChange(event.target.files?.[0] || null)}
+                          />
+                        </label>
+                        <button type="button" className="button-primary" onClick={handleGenerateVirtualTryOn}>
+                          Generar prueba virtual
+                        </button>
+                      </div>
+
+                      {renderStatusMessage(tryOnStatus)}
+                    </div>
+
+                    <div className="virtual-tryon-preview">
+                      <div
+                        className={`virtual-tryon-face ${tryOnFacePreview ? "virtual-tryon-face-ready" : ""}`}
+                        style={
+                          tryOnFacePreview
+                            ? {
+                                backgroundImage: `url("${tryOnFacePreview}")`,
+                              }
+                            : undefined
+                        }
+                      >
+                        {!tryOnFacePreview ? <span>Foto del usuario</span> : null}
+                      </div>
+
+                      <div className="virtual-tryon-result">
+                        {tryOnResult?.imagenUrl ? (
+                          <img src={resolveBackendMedia(tryOnResult.imagenUrl)} alt="Prueba virtual generada" />
+                        ) : (
+                          <div>
+                            <strong>Resultado IA</strong>
+                            <span>{tryOnResult?.estado || "Pendiente"}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {tryOnResult?.prendasSeleccionadas?.length ? (
+                      <div className="virtual-tryon-summary">
+                        {tryOnResult.prendasSeleccionadas.map((product) => (
+                          <span key={product.id}>{product.nombre}</span>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
             ) : (
               <div className="empty-state">
-                <strong>Sin resultado todavia</strong>
-                <p>Cuando presiones recomendar outfit, veras aqui las prendas sugeridas para tu perfil.</p>
+                <strong>Sin resultado todavía</strong>
+                <p>Cuando presiones recomendar outfit, verás aquí las prendas sugeridas para tu perfil.</p>
               </div>
             )}
           </section>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { registerRequest } from "../api/auth";
+import { loginWithGoogle, registerRequest } from "../api/auth";
 import { steps } from "../data/staticData";
 import { persistAuthSession } from "../utils/authStorage";
 import { keepDigits, keepLettersAndSpaces } from "../utils/inputSanitizers";
@@ -20,11 +20,11 @@ function RegisterPage() {
     const normalizedName = form.nombre.trim().replace(/\s+/g, " ");
 
     if (!/^[\p{L}]+(?:\s+[\p{L}]+)*$/u.test(normalizedName)) {
-      return "El nombre solo puede contener letras y espacios. No uses numeros, guiones ni caracteres especiales.";
+      return "El nombre solo puede contener letras y espacios. No uses números, guiones ni caracteres especiales.";
     }
 
     if (!/^9\d{8}$/.test(form.telefono)) {
-      return "El celular debe empezar con 9 y tener exactamente 9 digitos.";
+      return "El celular debe empezar con 9 y tener exactamente 9 dígitos.";
     }
 
     return "";
@@ -57,12 +57,28 @@ function RegisterPage() {
     }
   }
 
+  async function handleGoogleRegister() {
+    setIsSubmitting(true);
+    setStatus({ type: "", message: "" });
+
+    try {
+      const data = await loginWithGoogle();
+      persistAuthSession(data);
+      setStatus({ type: "success", message: "Cuenta creada correctamente con Google." });
+      navigate("/user");
+    } catch (error) {
+      setStatus({ type: "error", message: error.message });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <section className="auth-page">
       <div className="auth-card auth-card-split">
         <div className="auth-side auth-side-dark">
           <div className="auth-copy auth-copy-light">
-            <p className="section-kicker section-kicker-light">Como funciona</p>
+            <p className="section-kicker section-kicker-light">Cómo funciona</p>
             <h1>Publica, conecta y da nueva vida a tus prendas</h1>
             <p>
               Crea tu cuenta para acceder al dashboard, publicar prendas y
@@ -86,7 +102,7 @@ function RegisterPage() {
         <div className="auth-side auth-side-form">
           <div className="auth-form-head">
             <h2>Registro</h2>
-            <p>Tu cuenta se crea como usuario y luego podras empezar a publicar.</p>
+            <p>Tu cuenta se crea como usuario y luego podrás empezar a publicar.</p>
           </div>
 
           <form className="auth-form auth-form-grid" onSubmit={handleSubmit}>
@@ -103,7 +119,7 @@ function RegisterPage() {
                   }))
                 }
                 pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]{3,60}"
-                title="Solo letras y espacios. No uses numeros, guiones ni caracteres especiales."
+                title="Solo letras y espacios. No uses números, guiones ni caracteres especiales."
               />
             </label>
             <label>
@@ -121,7 +137,7 @@ function RegisterPage() {
                   }))
                 }
                 pattern="9[0-9]{8}"
-                title="Debe empezar con 9 y tener exactamente 9 digitos."
+                title="Debe empezar con 9 y tener exactamente 9 dígitos."
               />
             </label>
             <label className="full-span">
@@ -136,10 +152,10 @@ function RegisterPage() {
               />
             </label>
             <label className="full-span">
-              Contrasena
+              Contraseña
               <input
                 type="password"
-                placeholder="Crea una contrasena segura"
+                placeholder="Crea una contraseña segura"
                 value={form.password}
                 onChange={(event) =>
                   setForm((current) => ({ ...current, password: event.target.value }))
@@ -151,13 +167,25 @@ function RegisterPage() {
                 {status.message}
               </div>
             ) : null}
-            <button type="submit" className="button-primary auth-submit full-span" disabled={isSubmitting}>
+            <button
+              type="submit"
+              className="button-primary auth-submit full-span"
+              disabled={isSubmitting}
+            >
               {isSubmitting ? "Creando cuenta..." : "Crear cuenta"}
+            </button>
+            <button
+              type="button"
+              className="button-secondary auth-submit full-span"
+              onClick={handleGoogleRegister}
+              disabled={isSubmitting}
+            >
+              Crear cuenta con Google
             </button>
           </form>
 
           <div className="auth-meta">
-            <span>Ya tienes cuenta?</span>
+            <span>¿Ya tienes cuenta?</span>
             <Link to="/login">Entrar</Link>
           </div>
         </div>

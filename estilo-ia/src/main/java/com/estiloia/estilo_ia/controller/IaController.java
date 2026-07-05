@@ -10,6 +10,7 @@ import com.estiloia.estilo_ia.dto.IaOutfitRequest;
 import com.estiloia.estilo_ia.dto.IaOutfitResponse;
 import com.estiloia.estilo_ia.dto.IaPrecioRequest;
 import com.estiloia.estilo_ia.dto.IaPrecioResponse;
+import com.estiloia.estilo_ia.dto.IaPruebaVirtualResponse;
 import com.estiloia.estilo_ia.service.IaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/ia")
@@ -70,5 +73,15 @@ public class IaController {
             @RequestParam MultipartFile foto
     ) {
         return ResponseEntity.ok(iaService.analizarPrendaFoto(foto));
+    }
+
+    @PostMapping(value = "/generar-prueba-virtual", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<IaPruebaVirtualResponse> generarPruebaVirtual(
+            @RequestParam MultipartFile fotoRostro,
+            @RequestParam Integer estaturaCm,
+            @RequestParam String contextura,
+            @RequestParam List<Long> prendaIds
+    ) {
+        return ResponseEntity.ok(iaService.generarPruebaVirtual(fotoRostro, estaturaCm, contextura, prendaIds));
     }
 }

@@ -1,9 +1,9 @@
-import { apiRequest } from "./client";
+import { fetchOwnFirebaseProfile, fetchPublicFirebaseProfile } from "./firebaseAuth";
 
 export function fetchPublicProfile(id) {
-  return apiRequest(`/usuarios/${id}/perfil-publico`);
+  return fetchPublicFirebaseProfile(id);
 }
 
 export function fetchOwnProfile() {
-  return apiRequest("/usuarios/mi-perfil");
+  return fetchOwnFirebaseProfile();
 }

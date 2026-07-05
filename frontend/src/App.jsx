@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { BrowserRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { subscribeToAuthSession } from "./api/auth";
 import SiteFooter from "./components/SiteFooter";
 import SiteHeader from "./components/SiteHeader";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -10,8 +12,25 @@ import ProductDetailPage from "./pages/ProductDetailPage";
 import RegisterPage from "./pages/RegisterPage";
 import SellerProfilePage from "./pages/SellerProfilePage";
 import UserDashboardPage from "./pages/UserDashboardPage";
-import { getAuthSession } from "./utils/authStorage";
+import { clearAuthSession, getAuthSession, persistAuthSession } from "./utils/authStorage";
 import "./App.css";
+
+function AuthSessionBootstrap() {
+  useEffect(() => {
+    const unsubscribe = subscribeToAuthSession((session) => {
+      if (session) {
+        persistAuthSession(session);
+        return;
+      }
+
+      clearAuthSession();
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  return null;
+}
 
 function shouldShowAuthenticatedBackButton(pathname) {
   if (pathname === "/" || pathname === "/login" || pathname === "/register") {
@@ -77,6 +96,7 @@ function AppLayout({
 function App() {
   return (
     <BrowserRouter>
+      <AuthSessionBootstrap />
       <Routes>
         <Route
           path="/"

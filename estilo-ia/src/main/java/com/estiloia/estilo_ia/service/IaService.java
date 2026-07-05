@@ -10,6 +10,7 @@ import com.estiloia.estilo_ia.dto.IaOutfitRequest;
 import com.estiloia.estilo_ia.dto.IaOutfitResponse;
 import com.estiloia.estilo_ia.dto.IaPrecioRequest;
 import com.estiloia.estilo_ia.dto.IaPrecioResponse;
+import com.estiloia.estilo_ia.dto.IaPruebaVirtualResponse;
 import com.estiloia.estilo_ia.dto.PrendaResumenResponse;
 import com.estiloia.estilo_ia.entity.Prenda;
 import com.estiloia.estilo_ia.enums.EstadoPublicacion;
@@ -205,6 +206,38 @@ public class IaService {
                     referencias
             );
         }
+    }
+
+    public IaPruebaVirtualResponse generarPruebaVirtual(
+            MultipartFile fotoRostro,
+            Integer estaturaCm,
+            String contextura,
+            List<Long> prendaIds
+    ) {
+        validarFotoAnalisis(fotoRostro);
+        validarPerfilCorporal(estaturaCm, contextura);
+
+        if (prendaIds == null || prendaIds.size() != 2) {
+            throw new IllegalArgumentException("Debes seleccionar exactamente 2 prendas para la prueba virtual");
+        }
+
+        List<PrendaResumenResponse> prendas = prendaIds.stream()
+                .map(id -> obtenerPrendaActiva(id, "Una de las prendas seleccionadas no esta disponible"))
+                .map(PrendaResumenResponse::desdeEntidad)
+                .toList();
+
+        return new IaPruebaVirtualResponse(
+                "PENDIENTE_API",
+                "Flujo listo para conectar una API de virtual try-on. Se recibio la foto del usuario, perfil corporal y las 2 prendas seleccionadas.",
+                null,
+                construirResumenPerfil(estaturaCm, contextura),
+                prendas,
+                List.of(
+                        "Usa una foto frontal con buena iluminacion para conservar proporciones.",
+                        "Selecciona una prenda superior y una inferior para obtener un resultado mas realista.",
+                        "Al conectar la API, aqui se devolvera la imagen generada con el outfit aplicado."
+                )
+        );
     }
 
     public IaPrecioResponse sugerirPrecio(IaPrecioRequest request) {

@@ -9,6 +9,7 @@ import {
   reactivateAdminUser,
   updateAdminClaim,
 } from "../api/admin";
+import { logoutRequest } from "../api/auth";
 import { clearAuthSession } from "../utils/authStorage";
 
 const adminSections = [
@@ -86,14 +87,18 @@ function AdminDashboardPage() {
   }, [userSearch]);
 
   function handleLogout() {
-    clearAuthSession();
-    navigate("/login", { replace: true });
+    logoutRequest()
+      .catch(() => null)
+      .finally(() => {
+        clearAuthSession();
+        navigate("/login", { replace: true });
+      });
   }
 
   async function handleUserAction(id, action) {
     if (action === "eliminar") {
       const confirmed = window.confirm(
-        "¿Estas seguro de eliminar este usuario? Esta accion borrara tambien sus prendas y datos relacionados.",
+        "¿Estás seguro de eliminar este usuario? Esta acción borrará también sus prendas y datos relacionados.",
       );
 
       if (!confirmed) {
@@ -164,7 +169,7 @@ function AdminDashboardPage() {
         </nav>
 
         <button type="button" className="user-logout-button" onClick={handleLogout}>
-          <span>Cerrar sesion</span>
+          <span>Cerrar sesión</span>
           <svg
             className="logout-icon"
             viewBox="0 0 24 24"
@@ -224,7 +229,7 @@ function AdminDashboardPage() {
                 <input
                   value={userSearch}
                   onChange={(event) => setUserSearch(event.target.value)}
-                  placeholder="Nombre, email o telefono"
+                  placeholder="Nombre, email o teléfono"
                 />
               </label>
             </form>

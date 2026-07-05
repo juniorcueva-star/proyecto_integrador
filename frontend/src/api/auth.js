@@ -1,15 +1,27 @@
-import { apiRequest } from "./client";
+import {
+  loginWithFirebase,
+  loginWithGoogleFirebase,
+  logoutFromFirebase,
+  registerWithFirebase,
+  subscribeToFirebaseSession,
+} from "./firebaseAuth";
 
 export function loginRequest(payload) {
-  return apiRequest("/auth/login", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  return loginWithFirebase(payload);
 }
 
 export function registerRequest(payload) {
-  return apiRequest("/auth/registro", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  return registerWithFirebase(payload);
+}
+
+export function loginWithGoogle() {
+  return loginWithGoogleFirebase();
+}
+
+export function logoutRequest() {
+  return logoutFromFirebase();
+}
+
+export function subscribeToAuthSession(callback) {
+  return subscribeToFirebaseSession(callback);
 }

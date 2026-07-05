@@ -78,12 +78,12 @@ function CatalogPage() {
     const max = filterForm.precioMaximo ? Number(filterForm.precioMaximo) : null;
 
     if ((min !== null && min < 1) || (max !== null && max < 1)) {
-      setError("El precio minimo y maximo deben ser al menos S/ 1.");
+      setError("El precio mínimo y máximo deben ser al menos S/ 1.");
       return;
     }
 
     if (min !== null && max !== null && min > max) {
-      setError("El precio minimo no puede ser mayor que el precio maximo.");
+      setError("El precio mínimo no puede ser mayor que el precio máximo.");
       return;
     }
 
@@ -122,10 +122,10 @@ function CatalogPage() {
   return (
     <section className="catalog-page">
       <div className="page-hero">
-        <p className="section-kicker">Catalogo</p>
+        <p className="section-kicker">Catálogo</p>
         <h1>Piezas con historia listas para una nueva vida</h1>
         <p>
-          Explora prendas seleccionadas, filtra por categoria y descubre
+          Explora prendas seleccionadas, filtra por categoría y descubre
           vendedores con buena reputacion dentro de la comunidad.
         </p>
       </div>
@@ -142,7 +142,7 @@ function CatalogPage() {
             />
           </div>
           <div className="sidebar-block">
-            <h3>Categoria</h3>
+            <h3>Categoría</h3>
             <select
               value={filterForm.categoria}
               onChange={(event) => handleFilterChange("categoria", event.target.value)}
@@ -156,7 +156,7 @@ function CatalogPage() {
             </select>
           </div>
           <div className="sidebar-block">
-            <h3>Genero</h3>
+            <h3>Género</h3>
             <select
               value={filterForm.genero}
               onChange={(event) => handleFilterChange("genero", event.target.value)}
@@ -212,7 +212,7 @@ function CatalogPage() {
           {!loading && products.length === 0 ? (
             <div className="empty-state">
               <strong>No hay prendas para estos filtros.</strong>
-              <p>Cuando el backend tenga publicaciones activas, apareceran aqui.</p>
+              <p>Cuando el backend tenga publicaciones activas, aparecerán aquí.</p>
             </div>
           ) : null}
         </div>

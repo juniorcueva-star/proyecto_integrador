@@ -1,43 +1,30 @@
-import { apiRequest } from "./client";
+import {
+  banAdminUserInFirebase,
+  deleteAdminUserInFirebase,
+  fetchAdminStatsFromFirebase,
+  fetchAdminUsersFromFirebase,
+  reactivateAdminUserInFirebase,
+} from "./firebaseAdmin";
+import { fetchAdminClaims, updateAdminClaim } from "./reclamos";
 
 export function fetchAdminStats() {
-  return apiRequest("/admin/estadisticas");
-}
-
-export function fetchAdminClaims() {
-  return apiRequest("/admin/reclamos");
+  return fetchAdminStatsFromFirebase();
 }
 
 export function fetchAdminUsers(searchText = "") {
-  const params = new URLSearchParams();
-  if (searchText) params.set("texto", searchText);
-
-  return apiRequest(
-    params.toString() ? `/admin/usuarios/buscar?${params}` : "/admin/usuarios",
-  );
+  return fetchAdminUsersFromFirebase(searchText);
 }
 
 export function banAdminUser(id) {
-  return apiRequest(`/admin/usuarios/${id}/banear`, {
-    method: "PATCH",
-  });
+  return banAdminUserInFirebase(id);
 }
 
 export function reactivateAdminUser(id) {
-  return apiRequest(`/admin/usuarios/${id}/reactivar`, {
-    method: "PATCH",
-  });
+  return reactivateAdminUserInFirebase(id);
 }
 
 export function deleteAdminUser(id) {
-  return apiRequest(`/admin/usuarios/${id}`, {
-    method: "DELETE",
-  });
+  return deleteAdminUserInFirebase(id);
 }
 
-export function updateAdminClaim(id, payload) {
-  return apiRequest(`/admin/reclamos/${id}`, {
-    method: "PATCH",
-    body: JSON.stringify(payload),
-  });
-}
+export { fetchAdminClaims, updateAdminClaim };

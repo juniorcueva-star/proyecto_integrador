@@ -1,51 +1,30 @@
-# Estilo IA
+# Estilo IA Backend
 
-Estilo IA es una plataforma web de moda sostenible que permite publicar prendas, venderlas o intercambiarlas, registrar métodos de pago manuales como Yape o Plin, gestionar reclamos y administrar usuarios desde un panel de administrador.
+Backend auxiliar de Estilo IA construido con Spring Boot.
 
-## Tecnologías usadas
+## Estado actual
+
+- El flujo principal de la aplicación vive en el frontend React.
+- La autenticación, la base de datos y el almacenamiento ya funcionan con Firebase.
+- Este backend queda como apoyo opcional para pruebas locales y servicios auxiliares.
+
+## Tecnologías
 
 - Java 21+
 - Spring Boot
 - Spring Security
-- JWT
 - Spring Data JPA
-- MySQL
-- HTML
-- CSS
-- JavaScript
+- H2
 - Maven
 
-## Funcionalidades principales
+## Ejecución local
 
-### Usuario
+```bash
+.\mvnw.cmd spring-boot:run
+```
 
-- Registro e inicio de sesión
-- Catálogo de prendas
-- Búsqueda y filtros
-- Detalle de prenda
-- Publicación de prendas con imagen
-- Métodos de pago manuales: Yape, Plin, transferencia, efectivo u otro
-- Visualización de QR o número de pago del vendedor
-- Perfil de usuario
-- Reseñas a vendedores
-- Reclamos o soporte
+## Notas
 
-### Administrador
-
-- Dashboard general
-- Gestión de usuarios
-- Búsqueda de usuarios
-- Banear usuarios
-- Reactivar usuarios
-- Eliminación lógica de usuarios
-- Visualización de reclamos
-- Cambio de estado de reclamos
-- Estadísticas generales
-
-## Credenciales de prueba
-
-### Administrador
-
-```text
-Email: admin@estiloia.com
-Password: Admin12345
+- Ya no requiere XAMPP ni MySQL.
+- Usa H2 local por defecto.
+- Si no vas a usar servicios Spring, puedes trabajar solo con la carpeta `frontend`.

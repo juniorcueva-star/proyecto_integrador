@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
 
 :root {
   --bg: #f8f4ec;
@@ -9,10 +9,14 @@
   --text-soft: #70655d;
   --olive: #617048;
   --olive-strong: #4f5d38;
+  --sage: #dfe8dc;
+  --sky-soft: #e9f1f4;
+  --clay: #b66c4c;
+  --field-focus: rgba(65, 102, 120, 0.18);
   --border-soft: rgba(102, 88, 72, 0.18);
   --border-strong: rgba(102, 88, 72, 0.28);
-  --font-display: "Cormorant Garamond", Georgia, serif;
-  --font-sans: "Manrope", "Segoe UI", sans-serif;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -30,10 +34,12 @@ html {
 body {
   margin: 0;
   background:
-    radial-gradient(circle at top left, rgba(255, 250, 240, 0.92), transparent 28%),
-    linear-gradient(180deg, #f8f4ec 0%, #f4eee5 100%);
+    linear-gradient(135deg, rgba(223, 232, 220, 0.54), transparent 28rem),
+    linear-gradient(225deg, rgba(233, 241, 244, 0.62), transparent 30rem),
+    linear-gradient(180deg, #fbfaf7 0%, #f3eee6 100%);
   color: var(--text);
   font-family: var(--font-sans);
+  line-height: 1.5;
 }
 
 a,

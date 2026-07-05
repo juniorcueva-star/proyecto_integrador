@@ -75,22 +75,22 @@ function SellerProfilePage() {
       </div>
 
       <div className="profile-stats">
-        <article><strong>{profile.promedioCalificacion ?? "Sin datos"}</strong><span>valoracion media</span></article>
-        <article><strong>{profile.cantidadResenas ?? 0}</strong><span>resenas recibidas</span></article>
-        <article><strong>{profilePayments.length}</strong><span>metodos de pago</span></article>
+        <article><strong>{profile.promedioCalificacion ?? "Sin datos"}</strong><span>valoración media</span></article>
+        <article><strong>{profile.cantidadResenas ?? 0}</strong><span>reseñas recibidas</span></article>
+        <article><strong>{profilePayments.length}</strong><span>métodos de pago</span></article>
       </div>
 
       <section className="profile-panels">
         <article className="info-panel">
           <h2>Sobre el vendedor</h2>
           <p>
-            Este perfil muestra informacion publica registrada en el backend:
-            prendas publicadas, metodos de pago activos y resenas recibidas.
+            Este perfil muestra información pública registrada en el backend:
+            prendas publicadas, métodos de pago activos y reseñas recibidas.
           </p>
         </article>
 
         <article className="info-panel">
-          <h2>Metodos de pago activos</h2>
+          <h2>Métodos de pago activos</h2>
           <div className="payment-list">
             {profilePayments.length ? (
               profilePayments.map((method) => (
@@ -104,8 +104,8 @@ function SellerProfilePage() {
               ))
             ) : (
               <div className="payment-item">
-                <strong>Sin metodos visibles</strong>
-                <span>No hay metodos activos publicados.</span>
+              <strong>Sin métodos visibles</strong>
+              <span>No hay métodos activos publicados.</span>
               </div>
             )}
           </div>
@@ -133,8 +133,8 @@ function SellerProfilePage() {
             ))
           ) : (
             <article className="review-card">
-              <strong>Sin resenas todavia</strong>
-              <p>Este vendedor aun no tiene resenas publicadas.</p>
+              <strong>Sin reseñas todavía</strong>
+              <p>Este vendedor aún no tiene reseñas publicadas.</p>
             </article>
           )}
         </div>
@@ -144,7 +144,7 @@ function SellerProfilePage() {
         <div className="section-heading">
           <div>
             <p className="section-kicker">Prendas activas</p>
-            <h2>Catalogo del vendedor</h2>
+            <h2>Catálogo del vendedor</h2>
           </div>
         </div>
         <div className="product-grid">
@@ -155,7 +155,7 @@ function SellerProfilePage() {
         {profileProducts.length === 0 ? (
           <div className="empty-state">
             <strong>Sin prendas activas</strong>
-            <p>Este vendedor todavia no tiene publicaciones disponibles.</p>
+            <p>Este vendedor todavía no tiene publicaciones disponibles.</p>
           </div>
         ) : null}
       </section>
