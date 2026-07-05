@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { uploadPaymentProof } from "../api/comprobantesPago";
 import { fetchProductDetail } from "../api/prendas";
 import { fetchPublicProfile } from "../api/usuarios";
+import { getAuthSession } from "../utils/authStorage";
 import { resolveBackendMedia } from "../utils/media";
 import { formatPrice } from "../utils/productAdapter";
 
@@ -20,10 +22,15 @@ function buildWhatsappLink(contactValue, productName) {
 
 function ProductDetailPage() {
   const { id } = useParams();
+  const session = getAuthSession();
   const [product, setProduct] = useState(null);
   const [sellerProfile, setSellerProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [proofFile, setProofFile] = useState(null);
+  const [proofStatus, setProofStatus] = useState({ type: "", message: "" });
+  const checkoutPanelRef = useRef(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -64,11 +71,43 @@ function ProductDetailPage() {
 
   const detailImage = resolveBackendMedia(product?.imagenUrl);
   const sellerPaymentMethods = sellerProfile?.metodosPago || [];
-  const sellerProfileReviews = sellerProfile?.resenasRecibidas || [];
+  const isOwnProduct = String(product?.usuarioId || "") === String(session?.usuarioId || "");
   const whatsappLink = buildWhatsappLink(
     product?.contacto || sellerProfile?.telefono,
     product?.nombre || "esta prenda",
   );
+
+  function handleBuyProduct() {
+    setShowCheckout(true);
+    window.setTimeout(() => {
+      checkoutPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }
+
+  async function handlePaymentProofSubmit(event) {
+    event.preventDefault();
+    setProofStatus({ type: "", message: "" });
+
+    try {
+      await uploadPaymentProof(
+        {
+          vendedorId: product?.usuarioId,
+          vendedorNombre: sellerProfile?.nombre || product?.nombreVendedor || "",
+          prendaId: product?.id,
+          prendaNombre: product?.nombre,
+          monto: product?.precio,
+        },
+        proofFile,
+      );
+      setProofFile(null);
+      setProofStatus({
+        type: "success",
+        message: "Comprobante enviado. El administrador podra revisarlo en el perfil del vendedor.",
+      });
+    } catch (proofError) {
+      setProofStatus({ type: "error", message: proofError.message });
+    }
+  }
 
   if (loading) {
     return (
@@ -128,25 +167,107 @@ function ProductDetailPage() {
           </div>
 
           <div className="detail-actions">
+            {!isOwnProduct ? (
+              <button type="button" className="button-primary" onClick={handleBuyProduct}>
+                Comprar prenda
+              </button>
+            ) : null}
             {sellerProfile ? (
-              <Link to={`/vendedor/${product?.usuarioId}`} className="button-primary">
+              <Link to={`/vendedor/${product?.usuarioId}`} className="button-secondary">
                 Ver vendedor
               </Link>
-            ) : null}
-            {whatsappLink ? (
-              <a
-                href={whatsappLink}
-                className="button-secondary button-whatsapp"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Contactame ahora
-              </a>
             ) : null}
           </div>
         </div>
       </div>
 
+      {showCheckout && !isOwnProduct ? (
+        <section className="checkout-panel" ref={checkoutPanelRef}>
+          <div className="checkout-panel-head">
+            <div>
+              <p className="section-kicker">Compra simulada</p>
+              <h2>Datos de pago del vendedor</h2>
+            </div>
+            <strong>{formatPrice(product.precio)}</strong>
+          </div>
+
+          <div className="checkout-product-summary">
+            <span>{product.nombre}</span>
+            <span>{sellerProfile?.nombre || product.nombreVendedor || "Vendedor Estilo IA"}</span>
+          </div>
+
+          <div className="checkout-payment-grid">
+            {sellerPaymentMethods.length ? (
+              sellerPaymentMethods.map((method) => (
+                <article key={method.id || method.tipoMetodoPago} className="checkout-payment-card">
+                  <div>
+                    <strong>{method.tipoMetodoPago}</strong>
+                    <p>{method.numero || "Numero no registrado"}</p>
+                    {method.titular ? <span>Titular: {method.titular}</span> : null}
+                    {method.instrucciones ? <span>{method.instrucciones}</span> : null}
+                  </div>
+                  {method.qrUrl ? (
+                    <img src={resolveBackendMedia(method.qrUrl)} alt={`QR de ${method.tipoMetodoPago}`} />
+                  ) : (
+                    <div className="checkout-qr-empty">Sin QR</div>
+                  )}
+                </article>
+              ))
+            ) : (
+              <article className="checkout-payment-card">
+                <div>
+                  <strong>Sin metodos de pago visibles</strong>
+                  <p>Coordina el pago directamente con el vendedor.</p>
+                </div>
+                <div className="checkout-qr-empty">Pago pendiente</div>
+              </article>
+            )}
+          </div>
+
+          <form className="checkout-proof-form" onSubmit={handlePaymentProofSubmit}>
+            <label>
+              Subir comprobante de pago
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                onChange={(event) => setProofFile(event.target.files?.[0] || null)}
+              />
+              <span className="file-helper">
+                {proofFile
+                  ? `Comprobante seleccionado: ${proofFile.name}`
+                  : "Adjunta una captura o foto del pago realizado."}
+              </span>
+            </label>
+            {proofStatus.message ? (
+              <div className={`form-message form-message-${proofStatus.type}`}>
+                {proofStatus.message}
+              </div>
+            ) : null}
+            <button type="submit" className="button-secondary">
+              Enviar comprobante al administrador
+            </button>
+          </form>
+
+          <div className="checkout-footer">
+            <span>Contacte con el vendedor para confirmar disponibilidad y envio.</span>
+            {whatsappLink ? (
+              <a
+                href={whatsappLink}
+                className="button-primary button-whatsapp"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Contacte con el vendedor
+              </a>
+            ) : (
+              <span className="checkout-contact-missing">Telefono no registrado</span>
+            )}
+          </div>
+        </section>
+      ) : null}
+
+      {false ? (
+        <>
       <section className="detail-extras">
         <article className="info-panel">
           <h2>Descripción</h2>
@@ -203,6 +324,8 @@ function ProductDetailPage() {
           )}
         </div>
       </section>
+        </>
+      ) : null}
     </section>
   );
 }

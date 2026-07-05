@@ -9,8 +9,8 @@ export function fetchOwnPaymentMethods() {
   return fetchOwnPaymentMethodsFromFirebase();
 }
 
-export function createPaymentMethod(payload) {
-  return createPaymentMethodInFirebase(payload);
+export function createPaymentMethod(payload, qrFile = null) {
+  return createPaymentMethodInFirebase(payload, qrFile);
 }
 
 export function togglePaymentMethod(id, active) {

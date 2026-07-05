@@ -17,6 +17,7 @@ function getFallbackProductImage(product) {
 function ProductCard({ product }) {
   const normalizedProduct = adaptProduct(product);
   const imageUrl = resolveBackendMedia(normalizedProduct.imagenUrl) || getFallbackProductImage(normalizedProduct);
+  const hoverImageUrl = resolveBackendMedia(normalizedProduct.imagenSecundariaUrl);
   const mediaStyle = imageUrl
     ? {
         backgroundImage: `linear-gradient(rgba(37, 52, 32, 0.08), rgba(44, 33, 25, 0.1)), url("${imageUrl}")`,
@@ -31,6 +32,14 @@ function ProductCard({ product }) {
         className="product-media product-media-image"
         style={mediaStyle}
       >
+        {hoverImageUrl ? (
+          <span
+            className="product-media-hover"
+            style={{
+              backgroundImage: `linear-gradient(rgba(37, 52, 32, 0.08), rgba(44, 33, 25, 0.1)), url("${hoverImageUrl}")`,
+            }}
+          ></span>
+        ) : null}
         <span
           className={
             normalizedProduct.status === "Intercambio"

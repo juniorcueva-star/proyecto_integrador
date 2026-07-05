@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { logoutRequest } from "../api/auth";
 import { analyzeGarmentPhoto, generateVirtualTryOn, recommendOutfit } from "../api/ia";
+import { fetchOwnPurchaseProofs, fetchOwnSalesProofs } from "../api/comprobantesPago";
 import {
   createPaymentMethod,
   deletePaymentMethod,
@@ -20,7 +21,7 @@ import {
   updateProductStatus,
 } from "../api/prendas";
 import { createClaim, fetchOwnClaims } from "../api/reclamos";
-import { fetchOwnProfile } from "../api/usuarios";
+import { fetchOwnProfile, updateOwnProfile } from "../api/usuarios";
 import ProductCard from "../components/ProductCard";
 import { garmentOptions } from "../data/staticData";
 import { clearAuthSession, getAuthSession } from "../utils/authStorage";
@@ -62,6 +63,8 @@ function UserDashboardPage() {
   const [ownProducts, setOwnProducts] = useState([]);
   const [ownMethods, setOwnMethods] = useState([]);
   const [ownClaims, setOwnClaims] = useState([]);
+  const [ownPurchases, setOwnPurchases] = useState([]);
+  const [ownSales, setOwnSales] = useState([]);
   const [publicCatalog, setPublicCatalog] = useState([]);
   const [catalogTargets, setCatalogTargets] = useState([]);
   const [dashboardError, setDashboardError] = useState("");
@@ -74,6 +77,7 @@ function UserDashboardPage() {
   });
   const [activeCatalogFilters, setActiveCatalogFilters] = useState({});
   const [productStatus, setProductStatus] = useState({ type: "", message: "" });
+  const [profileStatus, setProfileStatus] = useState({ type: "", message: "" });
   const [paymentStatus, setPaymentStatus] = useState({ type: "", message: "" });
   const [claimStatus, setClaimStatus] = useState({ type: "", message: "" });
   const [aiStatus, setAiStatus] = useState({ type: "", message: "" });
@@ -105,16 +109,23 @@ function UserDashboardPage() {
     tipoPublicacion: "VENTA",
     contacto: "",
     imagen: null,
+    imagenSecundaria: null,
   });
   const [paymentForm, setPaymentForm] = useState({
     tipoMetodoPago: "YAPE",
     numero: "",
     titular: "",
     instrucciones: "",
+    qrFile: null,
   });
   const [claimForm, setClaimForm] = useState({
     usuarioReportadoId: "",
     prendaId: "",
+    motivo: "NO_ENTREGA",
+    descripcion: "",
+  });
+  const [purchaseClaimForm, setPurchaseClaimForm] = useState({
+    comprobanteId: "",
     motivo: "NO_ENTREGA",
     descripcion: "",
   });
@@ -124,6 +135,9 @@ function UserDashboardPage() {
     clima: "TEMPLADO",
     estaturaCm: "170",
     contextura: "NORMAL",
+  });
+  const [profileForm, setProfileForm] = useState({
+    telefono: session.telefono || "",
   });
 
   useEffect(() => {
@@ -180,11 +194,21 @@ function UserDashboardPage() {
     let isMounted = true;
 
     async function hydrateUserModules() {
-      const [productsResult, methodsResult, claimsResult, catalogResult, optionsResult] =
+      const [
+        productsResult,
+        methodsResult,
+        claimsResult,
+        purchasesResult,
+        salesResult,
+        catalogResult,
+        optionsResult,
+      ] =
         await Promise.allSettled([
           fetchOwnProducts(),
           fetchOwnPaymentMethods(),
           fetchOwnClaims(),
+          fetchOwnPurchaseProofs(),
+          fetchOwnSalesProofs(),
           fetchCatalog(),
           fetchProductOptions(),
         ]);
@@ -196,6 +220,8 @@ function UserDashboardPage() {
       );
       setOwnMethods(methodsResult.status === "fulfilled" ? methodsResult.value : []);
       setOwnClaims(claimsResult.status === "fulfilled" ? claimsResult.value : []);
+      setOwnPurchases(purchasesResult.status === "fulfilled" ? purchasesResult.value : []);
+      setOwnSales(salesResult.status === "fulfilled" ? salesResult.value : []);
 
       const options =
         optionsResult.status === "fulfilled" ? optionsResult.value : defaultBrandOptions;
@@ -251,6 +277,13 @@ function UserDashboardPage() {
     };
   }, [tryOnFacePreview]);
 
+  useEffect(() => {
+    const telefono = profile?.usuario?.telefono || session.telefono || "";
+    setProfileForm((current) =>
+      current.telefono === telefono ? current : { ...current, telefono },
+    );
+  }, [profile?.usuario?.telefono, session.telefono]);
+
   const stats = profile?.estadisticas
     ? [
         { label: "Prendas publicadas", value: String(profile.estadisticas.totalPrendas) },
@@ -262,7 +295,8 @@ function UserDashboardPage() {
         { label: "Prendas publicadas", value: String(ownProducts.length) },
         { label: "Métodos de pago", value: String(ownMethods.length) },
         { label: "Reclamos", value: String(ownClaims.length) },
-        { label: "Catálogo visible", value: String(catalogTargets.length) },
+        { label: "Ventas recibidas", value: String(ownSales.length) },
+        { label: "Compras", value: String(ownPurchases.length) },
       ];
 
   const fallbackProfile = {
@@ -272,6 +306,7 @@ function UserDashboardPage() {
   };
 
   const displayName = profile?.usuario?.nombre || fallbackProfile.nombre;
+  const accountPhone = profile?.usuario?.telefono || session.telefono || "";
   const avatarLabel = displayName
     .split(" ")
     .slice(0, 2)
@@ -286,6 +321,29 @@ function UserDashboardPage() {
         clearAuthSession();
         navigate("/login", { replace: true });
       });
+  }
+
+  async function handleUpdateProfile(event) {
+    event.preventDefault();
+    setProfileStatus({ type: "", message: "" });
+
+    const telefono = profileForm.telefono.trim();
+    if (!/^9\d{8}$/.test(telefono)) {
+      setProfileStatus({
+        type: "error",
+        message: "Ingresa un celular valido de 9 digitos que empiece con 9.",
+      });
+      return;
+    }
+
+    try {
+      const updatedProfile = await updateOwnProfile({ telefono });
+      localStorage.setItem("telefono", telefono);
+      setProfile(updatedProfile);
+      setProfileStatus({ type: "success", message: "Celular actualizado correctamente." });
+    } catch (error) {
+      setProfileStatus({ type: "error", message: error.message });
+    }
   }
 
   function handleCatalogSearch(event) {
@@ -473,10 +531,10 @@ function UserDashboardPage() {
         estadoFisico: productForm.estadoFisico,
         precio: Number(productForm.precio || 0),
         tipoPublicacion: productForm.tipoPublicacion,
-        contacto: productForm.contacto,
+        contacto: accountPhone,
       };
-      const created = productForm.imagen
-        ? await createProductWithImage(productPayload, productForm.imagen)
+      const created = productForm.imagen || productForm.imagenSecundaria
+        ? await createProductWithImage(productPayload, productForm.imagen, productForm.imagenSecundaria)
         : await createProduct(productPayload);
 
       setOwnProducts((current) => [adaptProduct(created), ...current]);
@@ -492,8 +550,9 @@ function UserDashboardPage() {
         estadoFisico: "BUEN_ESTADO",
         precio: "",
         tipoPublicacion: "VENTA",
-        contacto: "",
+        contacto: accountPhone,
         imagen: null,
+        imagenSecundaria: null,
       });
       setProductStatus({ type: "success", message: "Prenda creada correctamente." });
       setWardrobeView("PUBLICADA");
@@ -508,13 +567,14 @@ function UserDashboardPage() {
     setPaymentStatus({ type: "", message: "" });
 
     try {
-      const created = await createPaymentMethod(paymentForm);
+      const created = await createPaymentMethod(paymentForm, paymentForm.qrFile);
       setOwnMethods((current) => [created, ...current]);
       setPaymentForm({
         tipoMetodoPago: "YAPE",
         numero: "",
         titular: "",
         instrucciones: "",
+        qrFile: null,
       });
       setPaymentStatus({ type: "success", message: "Metodo de pago agregado." });
     } catch (error) {
@@ -584,9 +644,11 @@ function UserDashboardPage() {
       estadoFisico: product.estadoFisico || "BUEN_ESTADO",
       precio: product.precio !== undefined && product.precio !== null ? String(product.precio) : "",
       tipoPublicacion: product.tipoPublicacion || "VENTA",
-      contacto: product.contacto || "",
+      contacto: accountPhone || product.contacto || "",
       imagen: null,
+      imagenSecundaria: null,
       imagenUrl: product.imagenUrl || "",
+      imagenSecundariaUrl: product.imagenSecundariaUrl || "",
     });
     setProductStatus({ type: "", message: "" });
   }
@@ -616,13 +678,18 @@ function UserDashboardPage() {
         estadoFisico: editProductForm.estadoFisico,
         precio: Number(editProductForm.precio || 0),
         tipoPublicacion: editProductForm.tipoPublicacion,
-        contacto: editProductForm.contacto,
+        contacto: accountPhone || editProductForm.contacto,
         imagenUrl: editProductForm.imagenUrl,
+        imagenSecundariaUrl: editProductForm.imagenSecundariaUrl,
       };
 
       const updatedProduct = await updateProduct(editingProductId, payload);
-      const finalProduct = editProductForm.imagen
-        ? await updateProductImage(editingProductId, editProductForm.imagen)
+      const finalProduct = editProductForm.imagen || editProductForm.imagenSecundaria
+        ? await updateProductImage(
+            editingProductId,
+            editProductForm.imagen,
+            editProductForm.imagenSecundaria,
+          )
         : updatedProduct;
 
       setOwnProducts((current) =>
@@ -644,9 +711,9 @@ function UserDashboardPage() {
     try {
       const created = await createClaim({
         usuarioReportadoId: claimForm.usuarioReportadoId
-          ? Number(claimForm.usuarioReportadoId)
+          ? String(claimForm.usuarioReportadoId)
           : null,
-        prendaId: claimForm.prendaId ? Number(claimForm.prendaId) : null,
+        prendaId: claimForm.prendaId ? String(claimForm.prendaId) : null,
         motivo: claimForm.motivo,
         descripcion: claimForm.descripcion,
       });
@@ -658,6 +725,37 @@ function UserDashboardPage() {
         descripcion: "",
       });
       setClaimStatus({ type: "success", message: "Reclamo enviado correctamente." });
+    } catch (error) {
+      setClaimStatus({ type: "error", message: error.message });
+    }
+  }
+
+  async function handleCreatePurchaseClaim(event, purchase) {
+    event.preventDefault();
+    setClaimStatus({ type: "", message: "" });
+
+    if (!purchase?.id) {
+      setClaimStatus({ type: "error", message: "No se encontro la compra seleccionada." });
+      return;
+    }
+
+    try {
+      const created = await createClaim({
+        usuarioReportadoId: String(purchase.vendedorId || ""),
+        prendaId: String(purchase.prendaId || ""),
+        prendaNombre: purchase.prendaNombre || "Prenda",
+        nombreUsuarioReportado: purchase.vendedorNombre || "Vendedor",
+        comprobanteId: String(purchase.id),
+        motivo: purchaseClaimForm.motivo,
+        descripcion: purchaseClaimForm.descripcion,
+      });
+      setOwnClaims((current) => [created, ...current]);
+      setPurchaseClaimForm({
+        comprobanteId: "",
+        motivo: "NO_ENTREGA",
+        descripcion: "",
+      });
+      setClaimStatus({ type: "success", message: "Reclamo enviado al administrador." });
     } catch (error) {
       setClaimStatus({ type: "error", message: error.message });
     }
@@ -798,8 +896,11 @@ function UserDashboardPage() {
         : publishedProducts;
   const personalSections = [
     { id: "perfil", label: "Mi perfil" },
+    { id: "pagos", label: "Metodos de pago" },
     { id: "agregar", label: "Publicar prenda" },
     { id: "armario", label: "Mi armario" },
+    { id: "ventas", label: "Ventas" },
+    { id: "compras", label: "Historial de compras" },
   ];
   const inPersonalPanel = personalSections.some((section) => section.id === activeSection);
   const recommendedProducts = adaptProducts(aiResult?.referenciasCatalogo || []);
@@ -980,7 +1081,7 @@ function UserDashboardPage() {
             <section className="dashboard-panel user-section-panel">
               <div className="panel-head">
                 <h2>Mi perfil</h2>
-                <span>Información, pagos y reclamos</span>
+                <span>Datos personales de tu cuenta</span>
               </div>
 
               <div className="user-summary-grid">
@@ -1001,8 +1102,39 @@ function UserDashboardPage() {
                   <p>{profile?.promedioCalificacion ?? "Sin datos"}</p>
                 </article>
               </div>
+
+              <form className="module-form profile-phone-form" onSubmit={handleUpdateProfile}>
+                <label>
+                  Celular de contacto
+                  <input
+                    value={profileForm.telefono}
+                    inputMode="numeric"
+                    maxLength={9}
+                    placeholder="Ejemplo: 987654321"
+                    onChange={(event) =>
+                      setProfileForm((current) => ({
+                        ...current,
+                        telefono: keepDigits(event.target.value, 9),
+                      }))
+                    }
+                  />
+                </label>
+                <p className="form-helper">
+                  Si creaste tu cuenta con Google, agrega aqui tu celular para que tus compradores puedan contactarte y para usarlo al publicar prendas.
+                </p>
+                {profileStatus.message ? (
+                  <div className={`form-message form-message-${profileStatus.type}`}>
+                    {profileStatus.message}
+                  </div>
+                ) : null}
+                <button type="submit" className="button-primary">
+                  Guardar celular
+                </button>
+              </form>
             </section>
 
+            {false ? (
+              <>
             <section className="dashboard-panel user-section-panel">
               <div className="panel-head">
                 <h2>Mis prendas publicadas</h2>
@@ -1047,6 +1179,7 @@ function UserDashboardPage() {
                       <div>
                         <strong>{method.tipoMetodoPago}</strong>
                         <p>{method.numero || method.titular || method.instrucciones || "Sin detalle"}</p>
+                        {method.qrUrl ? <p>QR registrado</p> : null}
                       </div>
                       <div className="mini-actions">
                         <button
@@ -1127,6 +1260,24 @@ function UserDashboardPage() {
                           }))
                         }
                       />
+                    </label>
+                    <label className="full-span">
+                      QR de pago
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg,image/webp"
+                        onChange={(event) =>
+                          setPaymentForm((current) => ({
+                            ...current,
+                            qrFile: event.target.files?.[0] || null,
+                          }))
+                        }
+                      />
+                      <span className="file-helper">
+                        {paymentForm.qrFile
+                          ? `QR seleccionado: ${paymentForm.qrFile.name}`
+                          : "Opcional. Sube el QR de Yape, Plin o transferencia."}
+                      </span>
                     </label>
                   </div>
 
@@ -1228,7 +1379,133 @@ function UserDashboardPage() {
                 </form>
               </section>
             </div>
+              </>
+            ) : null}
           </div>
+        ) : null}
+
+        {activeSection === "pagos" ? (
+          <section className="dashboard-panel user-section-panel">
+            <div className="panel-head">
+              <h2>Metodos de pago</h2>
+              <span>Registra Yape, Plin o transferencia para tus ventas</span>
+            </div>
+
+            <div className="mini-list">
+              {ownMethods.map((method) => (
+                <article key={method.id || method.tipoMetodoPago} className="mini-item mini-item-stack">
+                  <div>
+                    <strong>{method.tipoMetodoPago}</strong>
+                    <p>{method.numero || method.titular || method.instrucciones || "Sin detalle"}</p>
+                    {method.qrUrl ? <p>QR registrado</p> : null}
+                  </div>
+                  <div className="mini-actions">
+                    <button
+                      type="button"
+                      className="mini-action"
+                      onClick={() => handleToggleMethod(method.id, method.activo ?? true)}
+                    >
+                      {method.activo ?? true ? "Desactivar" : "Activar"}
+                    </button>
+                    <button
+                      type="button"
+                      className="mini-action mini-action-danger"
+                      onClick={() => handleDeleteMethod(method.id)}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </article>
+              ))}
+              {ownMethods.length === 0 ? (
+                <article className="mini-item">
+                  <div>
+                    <strong>Sin metodos registrados</strong>
+                    <p>Agrega tus datos de pago para que los compradores puedan pagar una prenda.</p>
+                  </div>
+                  <span>0</span>
+                </article>
+              ) : null}
+            </div>
+
+            <form className="module-form" onSubmit={handleCreatePaymentMethod}>
+              <div className="module-form-grid">
+                <label>
+                  Tipo
+                  <select
+                    value={paymentForm.tipoMetodoPago}
+                    onChange={(event) =>
+                      setPaymentForm((current) => ({
+                        ...current,
+                        tipoMetodoPago: event.target.value,
+                      }))
+                    }
+                  >
+                    {garmentOptions.tiposPago.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Numero o referencia
+                  <input
+                    value={paymentForm.numero}
+                    onChange={(event) =>
+                      setPaymentForm((current) => ({ ...current, numero: event.target.value }))
+                    }
+                  />
+                </label>
+                <label className="full-span">
+                  Titular
+                  <input
+                    value={paymentForm.titular}
+                    onChange={(event) =>
+                      setPaymentForm((current) => ({ ...current, titular: event.target.value }))
+                    }
+                  />
+                </label>
+                <label className="full-span">
+                  Instrucciones
+                  <textarea
+                    rows="3"
+                    value={paymentForm.instrucciones}
+                    onChange={(event) =>
+                      setPaymentForm((current) => ({
+                        ...current,
+                        instrucciones: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label className="full-span">
+                  QR de pago
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp"
+                    onChange={(event) =>
+                      setPaymentForm((current) => ({
+                        ...current,
+                        qrFile: event.target.files?.[0] || null,
+                      }))
+                    }
+                  />
+                  <span className="file-helper">
+                    {paymentForm.qrFile
+                      ? `QR seleccionado: ${paymentForm.qrFile.name}`
+                      : "Opcional. Sube el QR de Yape, Plin o transferencia."}
+                  </span>
+                </label>
+              </div>
+
+              {renderStatusMessage(paymentStatus)}
+
+              <button type="submit" className="button-primary module-submit">
+                Guardar metodo
+              </button>
+            </form>
+          </section>
         ) : null}
 
         {activeSection === "armario" ? (
@@ -1298,6 +1575,14 @@ function UserDashboardPage() {
                           : undefined
                       }
                     >
+                      {resolveBackendMedia(product.imagenSecundariaUrl) ? (
+                        <span
+                          className="wardrobe-card-media-hover"
+                          style={{
+                            backgroundImage: `linear-gradient(rgba(38, 50, 34, 0.08), rgba(38, 31, 24, 0.12)), url("${resolveBackendMedia(product.imagenSecundariaUrl)}")`,
+                          }}
+                        ></span>
+                      ) : null}
                       {!resolveBackendMedia(product.imagenUrl) ? <span>Sin imagen</span> : null}
                       <strong>{product.status}</strong>
                     </div>
@@ -1453,20 +1738,10 @@ function UserDashboardPage() {
                               }
                             />
                           </label>
-                          <label>
-                            Contacto
-                            <input
-                              inputMode="numeric"
-                              maxLength="9"
-                              value={editProductForm.contacto}
-                              onChange={(event) =>
-                                setEditProductForm((current) => ({
-                                  ...current,
-                                  contacto: keepDigits(event.target.value, 9),
-                                }))
-                              }
-                            />
-                          </label>
+                          <div className="form-static-field">
+                            <strong>Contacto</strong>
+                            <span>{accountPhone || editProductForm.contacto || "No registrado"}</span>
+                          </div>
                           <label>
                             Talla
                             <select
@@ -1554,7 +1829,7 @@ function UserDashboardPage() {
                             />
                           </label>
                           <label className="full-span">
-                            Cambiar imagen
+                            Cambiar foto principal
                             <input
                               type="file"
                               accept="image/png,image/jpeg,image/jpg,image/webp"
@@ -1567,8 +1842,26 @@ function UserDashboardPage() {
                             />
                             <span className="file-helper">
                               {editProductForm.imagen
-                                ? `Nueva imagen: ${editProductForm.imagen.name}`
-                                : "Opcional. Si no seleccionas una nueva imagen, se mantiene la actual."}
+                                ? `Nueva foto principal: ${editProductForm.imagen.name}`
+                                : "Opcional. Esta foto aparece primero en el catálogo."}
+                            </span>
+                          </label>
+                          <label className="full-span">
+                            Cambiar foto secundaria
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg,image/jpg,image/webp"
+                              onChange={(event) =>
+                                setEditProductForm((current) => ({
+                                  ...current,
+                                  imagenSecundaria: event.target.files?.[0] || null,
+                                }))
+                              }
+                            />
+                            <span className="file-helper">
+                              {editProductForm.imagenSecundaria
+                                ? `Nueva foto secundaria: ${editProductForm.imagenSecundaria.name}`
+                                : "Opcional. Esta foto aparece al pasar el mouse por la prenda."}
                             </span>
                           </label>
                         </div>
@@ -1586,6 +1879,156 @@ function UserDashboardPage() {
                           </button>
                         </div>
                       </form>
+                    ) : null}
+                  </article>
+                ))
+              )}
+            </div>
+          </section>
+        ) : null}
+
+        {activeSection === "ventas" ? (
+          <section className="dashboard-panel user-section-panel">
+            <div className="panel-head">
+              <h2>Ventas</h2>
+              <span>Comprobantes recibidos por tus prendas</span>
+            </div>
+
+            <div className="commerce-proof-list">
+              {ownSales.length === 0 ? (
+                <article className="mini-item">
+                  <div>
+                    <strong>Aun no recibes comprobantes</strong>
+                    <p>Cuando un comprador suba su comprobante, aparecera aqui ligado a la prenda.</p>
+                  </div>
+                  <span>0</span>
+                </article>
+              ) : (
+                ownSales.map((sale) => (
+                  <article key={sale.id} className="commerce-proof-card">
+                    <div>
+                      <span className="section-kicker">Comprobante recibido</span>
+                      <h3>{sale.prendaNombre || "Prenda sin nombre"}</h3>
+                      <p>Comprador: {sale.compradorNombre || sale.compradorEmail || "No registrado"}</p>
+                      <p>Email: {sale.compradorEmail || "No registrado"}</p>
+                      <p>Monto: S/ {Number(sale.monto || 0).toFixed(2)} - Estado: {sale.estado}</p>
+                      <p>{sale.creadoEn ? new Date(sale.creadoEn).toLocaleString("es-PE") : ""}</p>
+                    </div>
+                    {sale.comprobanteUrl ? (
+                      <a href={sale.comprobanteUrl} target="_blank" rel="noreferrer">
+                        <img src={sale.comprobanteUrl} alt="Comprobante de pago recibido" />
+                      </a>
+                    ) : null}
+                  </article>
+                ))
+              )}
+            </div>
+          </section>
+        ) : null}
+
+        {activeSection === "compras" ? (
+          <section className="dashboard-panel user-section-panel">
+            <div className="panel-head">
+              <h2>Historial de compras</h2>
+              <span>Comprobantes enviados y reclamos de compra</span>
+            </div>
+
+            {renderStatusMessage(claimStatus)}
+
+            <div className="commerce-proof-list">
+              {ownPurchases.length === 0 ? (
+                <article className="mini-item">
+                  <div>
+                    <strong>Aun no tienes compras registradas</strong>
+                    <p>Cuando subas un comprobante desde el detalle de una prenda, aparecera aqui.</p>
+                  </div>
+                  <span>0</span>
+                </article>
+              ) : (
+                ownPurchases.map((purchase) => (
+                  <article key={purchase.id} className="commerce-proof-card">
+                    <div>
+                      <span className="section-kicker">Compra registrada</span>
+                      <h3>{purchase.prendaNombre || "Prenda sin nombre"}</h3>
+                      <p>Vendedor: {purchase.vendedorNombre || "Vendedor"}</p>
+                      <p>Monto: S/ {Number(purchase.monto || 0).toFixed(2)} - Estado: {purchase.estado}</p>
+                      <p>{purchase.creadoEn ? new Date(purchase.creadoEn).toLocaleString("es-PE") : ""}</p>
+
+                      {purchaseClaimForm.comprobanteId === purchase.id ? (
+                        <form
+                          className="module-form purchase-claim-form"
+                          onSubmit={(event) => handleCreatePurchaseClaim(event, purchase)}
+                        >
+                          <label>
+                            Motivo del reclamo
+                            <select
+                              value={purchaseClaimForm.motivo}
+                              onChange={(event) =>
+                                setPurchaseClaimForm((current) => ({
+                                  ...current,
+                                  motivo: event.target.value,
+                                }))
+                              }
+                            >
+                              {garmentOptions.motivosReclamo.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            Describe el problema
+                            <textarea
+                              rows="3"
+                              value={purchaseClaimForm.descripcion}
+                              onChange={(event) =>
+                                setPurchaseClaimForm((current) => ({
+                                  ...current,
+                                  descripcion: event.target.value,
+                                }))
+                              }
+                            />
+                          </label>
+                          <div className="button-row">
+                            <button type="submit" className="button-primary">
+                              Enviar reclamo
+                            </button>
+                            <button
+                              type="button"
+                              className="button-secondary"
+                              onClick={() =>
+                                setPurchaseClaimForm({
+                                  comprobanteId: "",
+                                  motivo: "NO_ENTREGA",
+                                  descripcion: "",
+                                })
+                              }
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <button
+                          type="button"
+                          className="button-secondary"
+                          onClick={() =>
+                            setPurchaseClaimForm({
+                              comprobanteId: purchase.id,
+                              motivo: "NO_ENTREGA",
+                              descripcion: "",
+                            })
+                          }
+                        >
+                          Reclamar problema
+                        </button>
+                      )}
+                    </div>
+                    {purchase.comprobanteUrl ? (
+                      <a href={purchase.comprobanteUrl} target="_blank" rel="noreferrer">
+                        <img src={purchase.comprobanteUrl} alt="Comprobante de pago enviado" />
+                      </a>
                     ) : null}
                   </article>
                 ))
@@ -1739,20 +2182,10 @@ function UserDashboardPage() {
                     }
                   />
                 </label>
-                <label>
-                  Contacto
-                  <input
-                    inputMode="numeric"
-                    maxLength="9"
-                    value={productForm.contacto}
-                    onChange={(event) =>
-                      setProductForm((current) => ({
-                        ...current,
-                        contacto: keepDigits(event.target.value, 9),
-                      }))
-                    }
-                  />
-                </label>
+                <div className="form-static-field">
+                  <strong>Contacto</strong>
+                  <span>{accountPhone || "No registrado en tu perfil"}</span>
+                </div>
                 <label>
                   Talla
                   <select
@@ -1837,7 +2270,7 @@ function UserDashboardPage() {
                   />
                 </label>
                 <label className="full-span">
-                  Imagen de la prenda
+                  Foto principal de la prenda
                   <input
                     type="file"
                     accept="image/png,image/jpeg,image/jpg,image/webp"
@@ -1850,8 +2283,26 @@ function UserDashboardPage() {
                   />
                   <span className="file-helper">
                     {productForm.imagen
-                      ? `Imagen seleccionada: ${productForm.imagen.name}`
-                      : "Selecciona una imagen desde tu computadora."}
+                      ? `Foto principal: ${productForm.imagen.name}`
+                      : "Esta foto aparecerá primero en el catálogo."}
+                  </span>
+                </label>
+                <label className="full-span">
+                  Foto secundaria para hover
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp"
+                    onChange={(event) =>
+                      setProductForm((current) => ({
+                        ...current,
+                        imagenSecundaria: event.target.files?.[0] || null,
+                      }))
+                    }
+                  />
+                  <span className="file-helper">
+                    {productForm.imagenSecundaria
+                      ? `Foto secundaria: ${productForm.imagenSecundaria.name}`
+                      : "Al pasar el mouse por la prenda se mostrará esta segunda foto."}
                   </span>
                 </label>
               </div>

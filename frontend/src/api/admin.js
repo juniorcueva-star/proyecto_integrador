@@ -1,6 +1,8 @@
 import {
   banAdminUserInFirebase,
   deleteAdminUserInFirebase,
+  fetchAdminPaymentProofsFromFirebase,
+  fetchAdminSellerProfileFromFirebase,
   fetchAdminStatsFromFirebase,
   fetchAdminUsersFromFirebase,
   reactivateAdminUserInFirebase,
@@ -13,6 +15,14 @@ export function fetchAdminStats() {
 
 export function fetchAdminUsers(searchText = "") {
   return fetchAdminUsersFromFirebase(searchText);
+}
+
+export function fetchAdminSellerProfile(id) {
+  return fetchAdminSellerProfileFromFirebase(id);
+}
+
+export function fetchAdminPaymentProofs() {
+  return fetchAdminPaymentProofsFromFirebase();
 }
 
 export function banAdminUser(id) {

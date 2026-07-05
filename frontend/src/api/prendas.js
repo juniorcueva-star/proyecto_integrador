@@ -31,16 +31,16 @@ export function createProduct(payload) {
   return createProductInFirebase(payload);
 }
 
-export function createProductWithImage(payload, imageFile) {
-  return createProductWithImageInFirebase(payload, imageFile);
+export function createProductWithImage(payload, imageFile, secondaryImageFile = null) {
+  return createProductWithImageInFirebase(payload, imageFile, secondaryImageFile);
 }
 
 export function updateProduct(id, payload) {
   return updateProductInFirebase(id, payload);
 }
 
-export function updateProductImage(id, imageFile) {
-  return updateProductImageInFirebase(id, imageFile);
+export function updateProductImage(id, imageFile, secondaryImageFile = null) {
+  return updateProductImageInFirebase(id, imageFile, secondaryImageFile);
 }
 
 export function deleteProduct(id) {

@@ -166,7 +166,7 @@ async function uploadProductImage(imageFile, userId) {
   return getDownloadURL(objectRef);
 }
 
-function buildFirebaseProductPayload(payload, currentImageUrl = "") {
+function buildFirebaseProductPayload(payload, currentImageUrl = "", currentSecondaryImageUrl = "") {
   const session = ensureAuthenticatedUser();
   const now = new Date();
   const price = Number(payload.precio || 0);
@@ -191,6 +191,9 @@ function buildFirebaseProductPayload(payload, currentImageUrl = "") {
     estadoPublicacion: payload.estadoPublicacion || "PUBLICADA",
     contacto: String(payload.contacto || "").trim(),
     imagenUrl: String(payload.imagenUrl || currentImageUrl || "").trim(),
+    imagenSecundariaUrl: String(
+      payload.imagenSecundariaUrl || currentSecondaryImageUrl || "",
+    ).trim(),
     usuarioId: String(session.usuarioId),
     nombreVendedor: session.nombre || "Usuario Estilo IA",
     eliminado: false,
@@ -253,6 +256,7 @@ export async function fetchOwnProductsFromFirebase() {
   const prendasQuery = query(
     collection(db, PRENDAS_COLLECTION),
     where("usuarioId", "==", String(session.usuarioId)),
+    where("eliminado", "==", false),
   );
   const snapshot = await getDocs(prendasQuery);
 
@@ -270,15 +274,19 @@ export async function createProductInFirebase(payload) {
   return normalizeFirestoreProduct(snapshot);
 }
 
-export async function createProductWithImageInFirebase(payload, imageFile) {
+export async function createProductWithImageInFirebase(payload, imageFile, secondaryImageFile = null) {
   const session = ensureAuthenticatedUser();
   const imageUrl = imageFile
     ? await uploadProductImage(imageFile, String(session.usuarioId))
     : String(payload.imagenUrl || "").trim();
+  const secondaryImageUrl = secondaryImageFile
+    ? await uploadProductImage(secondaryImageFile, String(session.usuarioId))
+    : String(payload.imagenSecundariaUrl || "").trim();
 
   return createProductInFirebase({
     ...payload,
     imagenUrl: imageUrl,
+    imagenSecundariaUrl: secondaryImageUrl,
   });
 }
 
@@ -306,6 +314,7 @@ export async function updateProductInFirebase(id, payload) {
       fechaPublicacionMs: currentProduct.fechaPublicacionMs,
     },
     currentProduct.imagenUrl,
+    currentProduct.imagenSecundariaUrl,
   );
 
   await updateDoc(productRef, nextPayload);
@@ -313,7 +322,7 @@ export async function updateProductInFirebase(id, payload) {
   return normalizeFirestoreProduct(updatedSnapshot);
 }
 
-export async function updateProductImageInFirebase(id, imageFile) {
+export async function updateProductImageInFirebase(id, imageFile, secondaryImageFile = null) {
   const db = getFirebaseDb();
   const session = ensureAuthenticatedUser();
   const productRef = doc(db, PRENDAS_COLLECTION, String(id));
@@ -329,11 +338,22 @@ export async function updateProductImageInFirebase(id, imageFile) {
     throw new Error("No puedes editar una prenda que no te pertenece.");
   }
 
-  const imageUrl = await uploadProductImage(imageFile, String(session.usuarioId));
-  await updateDoc(productRef, {
-    imagenUrl: imageUrl,
+  const imageUpdates = {
     actualizadoEn: new Date().toISOString(),
-  });
+  };
+
+  if (imageFile) {
+    imageUpdates.imagenUrl = await uploadProductImage(imageFile, String(session.usuarioId));
+  }
+
+  if (secondaryImageFile) {
+    imageUpdates.imagenSecundariaUrl = await uploadProductImage(
+      secondaryImageFile,
+      String(session.usuarioId),
+    );
+  }
+
+  await updateDoc(productRef, imageUpdates);
 
   const updatedSnapshot = await getDoc(productRef);
   return normalizeFirestoreProduct(updatedSnapshot);

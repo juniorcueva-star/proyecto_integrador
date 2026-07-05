@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { BrowserRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { subscribeToAuthSession } from "./api/auth";
-import SiteFooter from "./components/SiteFooter";
 import SiteHeader from "./components/SiteHeader";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
@@ -88,7 +87,6 @@ function AppLayout({
         <AuthenticatedBackButton />
         {children}
       </main>
-      <SiteFooter />
     </div>
   );
 }

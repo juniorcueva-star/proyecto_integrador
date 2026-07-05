@@ -31,11 +31,11 @@ service cloud.firestore {
 
     match /prendas/{prendaId} {
       allow create: if signedIn() && request.resource.data.usuarioId == ownUserId();
-      allow read: if !resource.data.eliminado
-        && (
-          isAdmin()
-          || isOwner(resource.data.usuarioId)
-          || resource.data.estadoPublicacion == "PUBLICADA"
+      allow read: if isAdmin()
+        || isOwner(resource.data.usuarioId)
+        || (
+          resource.data.eliminado != true
+          && resource.data.estadoPublicacion == "PUBLICADA"
         );
       allow update: if isAdmin()
         || (
@@ -66,6 +66,18 @@ service cloud.firestore {
         || (signedIn() && (
           resource.data.usuarioCreadorId == ownUserId()
           || resource.data.usuarioReportadoId == ownUserId()
+        ));
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /comprobantes_pago/{proofId} {
+      allow create: if signedIn()
+        && request.resource.data.compradorId == ownUserId();
+      allow read: if isAdmin()
+        || (signedIn() && (
+          resource.data.compradorId == ownUserId()
+          || resource.data.vendedorId == ownUserId()
         ));
       allow update: if isAdmin();
       allow delete: if isAdmin();

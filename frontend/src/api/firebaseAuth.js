@@ -7,7 +7,7 @@ import {
   signOut,
   updateProfile,
 } from "firebase/auth";
-import { collection, doc, getDoc, getDocs, query, setDoc, where } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from "firebase/firestore";
 import { getFirebaseAuth, getFirebaseDb } from "../lib/firebase";
 
 const USERS_COLLECTION = "usuarios";
@@ -72,7 +72,7 @@ async function buildSessionFromUser(user, extra = {}) {
     throw new Error("Esta cuenta fue eliminada.");
   }
 
-  if (profile.estadoUsuario === "BANEADO") {
+  if (["BANEADO", "PAUSADO"].includes(profile.estadoUsuario)) {
     await signOut(getFirebaseAuth());
     throw new Error("Esta cuenta está suspendida temporalmente.");
   }
@@ -180,7 +180,11 @@ export async function fetchOwnFirebaseProfile() {
 
   try {
     const productsSnapshot = await getDocs(
-      query(collection(db, "prendas"), where("usuarioId", "==", currentUser.uid)),
+      query(
+        collection(db, "prendas"),
+        where("usuarioId", "==", currentUser.uid),
+        where("eliminado", "==", false),
+      ),
     );
     ownProducts = productsSnapshot.docs
       .map((item) => ({ id: item.id, ...(item.data() || {}) }))
@@ -206,6 +210,24 @@ export async function fetchOwnFirebaseProfile() {
   };
 }
 
+export async function updateOwnFirebaseProfile(payload) {
+  const db = getFirebaseDb();
+  const currentUser = await getCurrentFirebaseUserOrWait();
+  const telefono = String(payload?.telefono || "").trim();
+
+  if (!/^9\d{8}$/.test(telefono)) {
+    throw new Error("Ingresa un celular valido de 9 digitos que empiece con 9.");
+  }
+
+  const userRef = doc(db, USERS_COLLECTION, currentUser.uid);
+  await updateDoc(userRef, {
+    telefono,
+    actualizadoEn: new Date().toISOString(),
+  });
+
+  return fetchOwnFirebaseProfile();
+}
+
 export async function fetchPublicFirebaseProfile(id) {
   const db = getFirebaseDb();
   const userRef = doc(db, USERS_COLLECTION, String(id));
@@ -217,7 +239,12 @@ export async function fetchPublicFirebaseProfile(id) {
 
   const profile = snapshot.data();
   const productsSnapshot = await getDocs(
-    query(collection(db, "prendas"), where("usuarioId", "==", String(id))),
+    query(
+      collection(db, "prendas"),
+      where("usuarioId", "==", String(id)),
+      where("eliminado", "==", false),
+      where("estadoPublicacion", "==", "PUBLICADA"),
+    ),
   );
   const visibleProducts = productsSnapshot.docs
     .map((item) => ({ id: item.id, ...(item.data() || {}) }))

@@ -9,7 +9,8 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import { getFirebaseDb } from "../lib/firebase";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { getFirebaseDb, getFirebaseStorage } from "../lib/firebase";
 import { getAuthSession } from "../utils/authStorage";
 
 const PAYMENT_COLLECTION = "metodos_pago";
@@ -31,6 +32,17 @@ function normalizePayment(snapshot) {
   };
 }
 
+async function uploadPaymentQr(qrFile, userId) {
+  if (!qrFile) return "";
+
+  const storage = getFirebaseStorage();
+  const safeName = qrFile.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+  const objectRef = ref(storage, `metodos-pago/${userId}/${Date.now()}-${safeName}`);
+
+  await uploadBytes(objectRef, qrFile);
+  return getDownloadURL(objectRef);
+}
+
 export async function fetchOwnPaymentMethodsFromFirebase() {
   const db = getFirebaseDb();
   const session = ensureSession();
@@ -49,15 +61,17 @@ export async function fetchOwnPaymentMethodsFromFirebase() {
     });
 }
 
-export async function createPaymentMethodInFirebase(payload) {
+export async function createPaymentMethodInFirebase(payload, qrFile = null) {
   const db = getFirebaseDb();
   const session = ensureSession();
   const now = new Date().toISOString();
+  const qrUrl = await uploadPaymentQr(qrFile, String(session.usuarioId));
   const docRef = await addDoc(collection(db, PAYMENT_COLLECTION), {
     tipoMetodoPago: payload.tipoMetodoPago,
     numero: String(payload.numero || "").trim(),
     titular: String(payload.titular || "").trim(),
     instrucciones: String(payload.instrucciones || "").trim(),
+    qrUrl,
     usuarioId: String(session.usuarioId),
     nombreUsuario: session.nombre || "Usuario Estilo IA",
     activo: true,

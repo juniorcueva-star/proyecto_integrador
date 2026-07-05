@@ -21,5 +21,16 @@ service firebase.storage {
       allow read: if true;
       allow write: if (signedIn() && ownUserId() == userId) || isAdmin();
     }
+
+    match /metodos-pago/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if (signedIn() && ownUserId() == userId) || isAdmin();
+    }
+
+    match /comprobantes-pago/{sellerId}/{buyerId}/{allPaths=**} {
+      allow read: if isAdmin()
+        || (signedIn() && (ownUserId() == sellerId || ownUserId() == buyerId));
+      allow write: if signedIn() && ownUserId() == buyerId;
+    }
   }
 }

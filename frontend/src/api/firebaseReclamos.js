@@ -57,7 +57,13 @@ export async function createClaimInFirebase(payload) {
     throw new Error("Debes seleccionar una prenda para crear el reclamo.");
   }
 
-  const product = await fetchProductDetailFromFirebase(payload.prendaId);
+  const product = payload.comprobanteId
+    ? {
+        usuarioId: payload.usuarioReportadoId,
+        nombre: payload.prendaNombre,
+        nombreVendedor: payload.nombreUsuarioReportado,
+      }
+    : await fetchProductDetailFromFirebase(payload.prendaId);
 
   if (String(product.usuarioId) === String(session.usuarioId)) {
     throw new Error("No puedes crear un reclamo sobre tu propia prenda.");
@@ -71,6 +77,8 @@ export async function createClaimInFirebase(payload) {
     nombreUsuarioReportado: product.nombreVendedor || "Vendedor",
     prendaId: String(payload.prendaId),
     nombrePrenda: product.nombre || "Prenda",
+    comprobanteId: payload.comprobanteId ? String(payload.comprobanteId) : "",
+    origen: payload.comprobanteId ? "COMPRA" : "CATALOGO",
     motivo: payload.motivo,
     descripcion: String(payload.descripcion || "").trim(),
     estado: "PENDIENTE",
