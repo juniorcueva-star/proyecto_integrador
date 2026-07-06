@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   banAdminUser,
+  deleteAdminProduct,
   deleteAdminUser,
-  fetchAdminPaymentProofs,
   fetchAdminSellerProfile,
   fetchAdminClaims,
   fetchAdminStats,
   fetchAdminUsers,
+  pauseAdminProduct,
   reactivateAdminUser,
   updateAdminClaim,
 } from "../api/admin";
@@ -17,7 +18,6 @@ import { clearAuthSession } from "../utils/authStorage";
 const adminSections = [
   { id: "resumen", label: "Resumen" },
   { id: "usuarios", label: "Usuarios" },
-  { id: "movimientos", label: "Compras y ventas" },
   { id: "reclamos", label: "Reclamos" },
 ];
 
@@ -25,6 +25,7 @@ const profileTabs = [
   { id: "resumen", label: "Resumen" },
   { id: "prendas", label: "Prendas publicadas" },
   { id: "ventas", label: "Ventas" },
+  { id: "intercambiadas", label: "Intercambiadas" },
   { id: "compras", label: "Compras" },
 ];
 
@@ -32,13 +33,22 @@ function formatAdminMoney(value) {
   return `S/ ${Number(value || 0).toFixed(2)}`;
 }
 
+function formatClaimStatusLabel(status) {
+  const labels = {
+    PENDIENTE: "Pendiente",
+    EN_REVISION: "En revisión",
+    RESUELTO: "Resuelto",
+    RECHAZADO: "Rechazado",
+  };
+
+  return labels[status] || status || "Pendiente";
+}
+
 function AdminDashboardPage() {
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState("resumen");
   const [stats, setStats] = useState([]);
-  const [statsTable, setStatsTable] = useState([]);
   const [claims, setClaims] = useState([]);
-  const [paymentProofs, setPaymentProofs] = useState([]);
   const [users, setUsers] = useState([]);
   const [userSearch, setUserSearch] = useState("");
   const [claimResponses, setClaimResponses] = useState({});
@@ -51,64 +61,27 @@ function AdminDashboardPage() {
 
     async function loadDashboard() {
       try {
-        const [data, claimsData, proofsData] = await Promise.all([
+        const [data, claimsData] = await Promise.all([
           fetchAdminStats(),
           fetchAdminClaims(),
-          fetchAdminPaymentProofs(),
         ]);
 
         if (!isMounted) return;
 
         setStats([
+          { label: "Prendas publicadas", value: String(data.prendasPublicadas) },
           { label: "Usuarios totales", value: String(data.usuariosTotales) },
           { label: "Usuarios activos", value: String(data.usuariosActivos) },
-          { label: "Cuentas pausadas", value: String(data.usuariosBaneados) },
-          { label: "Prendas publicadas", value: String(data.prendasPublicadas) },
-          { label: "Vendidas", value: String(data.prendasVendidas) },
-          { label: "Compras comprobadas", value: String(data.comprasComprobadas ?? proofsData.length) },
+          { label: "Usuarios pausados", value: String(data.usuariosBaneados) },
+          { label: "Prendas vendidas", value: String(data.prendasVendidas) },
+          { label: "Reclamos resueltos", value: String(data.reclamosResueltos ?? 0) },
           { label: "Reclamos pendientes", value: String(data.reclamosPendientes ?? 0) },
-          { label: "CO2 estimado", value: `${data.impactoAmbientalEstimadoKgCo2 ?? 0} kg` },
-        ]);
-        setStatsTable([
-          {
-            concepto: "Prendas vendidas",
-            cantidad: data.prendasVendidas,
-            monto: data.montoVendidas,
-            detalle: "Marcadas como vendidas por vendedores",
-          },
-          {
-            concepto: "Compras comprobadas",
-            cantidad: data.comprasComprobadas ?? proofsData.length,
-            monto: data.montoComprobantes,
-            detalle: "Comprobantes subidos por compradores",
-          },
-          {
-            concepto: "Prendas intercambiadas",
-            cantidad: data.prendasIntercambiadas,
-            monto: data.montoIntercambiadas,
-            detalle: "Marcadas como intercambio",
-          },
-          {
-            concepto: "Ticket promedio",
-            cantidad: data.comprasComprobadas ?? proofsData.length,
-            monto: data.ticketPromedio,
-            detalle: "Promedio de comprobantes recibidos",
-          },
-          {
-            concepto: "Reclamos resueltos",
-            cantidad: data.reclamosResueltos,
-            monto: 0,
-            detalle: "Casos cerrados por administracion",
-          },
         ]);
         setClaims(claimsData);
-        setPaymentProofs(proofsData);
       } catch (error) {
         if (!isMounted) return;
         setStats([]);
-        setStatsTable([]);
         setClaims([]);
-        setPaymentProofs([]);
         setStatus({ type: "error", message: error.message });
       }
     }
@@ -212,6 +185,44 @@ function AdminDashboardPage() {
     }
   }
 
+  async function handleAdminProductAction(productId, action) {
+    if (action === "eliminar") {
+      const confirmed = window.confirm("¿Estás seguro de eliminar esta publicación?");
+      if (!confirmed) return;
+    }
+
+    try {
+      if (action === "pausar") {
+        const updated = await pauseAdminProduct(productId);
+        setSelectedSellerProfile((current) =>
+          current
+            ? {
+                ...current,
+                prendas: current.prendas.map((product) =>
+                  product.id === productId ? { ...product, ...updated } : product,
+                ),
+              }
+            : current,
+        );
+        setStatus({ type: "success", message: "Publicación pausada correctamente." });
+        return;
+      }
+
+      await deleteAdminProduct(productId);
+      setSelectedSellerProfile((current) =>
+        current
+          ? {
+              ...current,
+              prendas: current.prendas.filter((product) => product.id !== productId),
+            }
+          : current,
+      );
+      setStatus({ type: "success", message: "Publicación eliminada correctamente." });
+    } catch (error) {
+      setStatus({ type: "error", message: error.message });
+    }
+  }
+
   const selectedProducts = selectedSellerProfile?.prendas || [];
   const selectedPublishedProducts = selectedProducts.filter(
     (item) => item.estadoPublicacion === "PUBLICADA",
@@ -219,10 +230,9 @@ function AdminDashboardPage() {
   const selectedSoldProducts = selectedProducts.filter(
     (item) => item.estadoPublicacion === "VENDIDA",
   );
-  const selectedOtherProducts = selectedProducts.filter(
-    (item) => !["PUBLICADA", "VENDIDA"].includes(item.estadoPublicacion),
+  const selectedExchangedProducts = selectedProducts.filter(
+    (item) => item.estadoPublicacion === "INTERCAMBIADA",
   );
-  const selectedSales = selectedSellerProfile?.comprobantes || [];
   const selectedPurchases = selectedSellerProfile?.compras || [];
 
   return (
@@ -291,23 +301,6 @@ function AdminDashboardPage() {
                   <strong>{item.value}</strong>
                   <span>{item.label}</span>
                 </article>
-              ))}
-            </div>
-
-            <div className="admin-metrics-table">
-              <div className="admin-table-row admin-table-head">
-                <span>Indicador</span>
-                <span>Cantidad</span>
-                <span>Monto real</span>
-                <span>Detalle</span>
-              </div>
-              {statsTable.map((row) => (
-                <div key={row.concepto} className="admin-table-row">
-                  <strong>{row.concepto}</strong>
-                  <span>{row.cantidad ?? 0}</span>
-                  <span>{formatAdminMoney(row.monto)}</span>
-                  <span>{row.detalle}</span>
-                </div>
               ))}
             </div>
           </section>
@@ -407,62 +400,100 @@ function AdminDashboardPage() {
                   ))}
                 </nav>
 
-                <div className="admin-seller-grid">
-                  <article className="user-summary-card">
-                    <strong>Email</strong>
-                    <p>{selectedSellerProfile.usuario.email || "No registrado"}</p>
-                  </article>
-                  <article className="user-summary-card">
-                    <strong>Telefono</strong>
-                    <p>{selectedSellerProfile.usuario.telefono || "No registrado"}</p>
-                  </article>
-                  <article className="user-summary-card">
-                    <strong>Prendas</strong>
-                    <p>{selectedProducts.length}</p>
-                  </article>
-                  <article className="user-summary-card">
-                    <strong>Publicadas</strong>
-                    <p>{selectedPublishedProducts.length}</p>
-                  </article>
-                  <article className="user-summary-card">
-                    <strong>Vendidas</strong>
-                    <p>{selectedSoldProducts.length}</p>
-                  </article>
-                  <article className="user-summary-card">
-                    <strong>Ventas recibidas</strong>
-                    <p>{selectedSales.length}</p>
-                  </article>
-                  <article className="user-summary-card">
-                    <strong>Compras</strong>
-                    <p>{selectedPurchases.length}</p>
-                  </article>
-                </div>
-
                 {selectedProfileTab === "resumen" ? (
-                  <div className="admin-profile-summary">
-                    <article>
-                      <strong>Estado de cuenta</strong>
-                      <p>{selectedSellerProfile.usuario.estadoUsuario || "ACTIVO"}</p>
-                    </article>
-                    <article>
-                      <strong>Rol</strong>
-                      <p>{selectedSellerProfile.usuario.rol || "ROLE_USER"}</p>
-                    </article>
-                    <article>
-                      <strong>Metodos de pago</strong>
-                      <p>{selectedSellerProfile.metodosPago.length}</p>
-                    </article>
-                    <article>
-                      <strong>Otras prendas</strong>
-                      <p>{selectedOtherProducts.length}</p>
-                    </article>
+                  <div className="admin-profile-resume">
+                    <div className="admin-profile-summary">
+                      <article>
+                        <strong>Nombre</strong>
+                        <p>{selectedSellerProfile.usuario.nombre || "No registrado"}</p>
+                      </article>
+                      <article>
+                        <strong>Correo</strong>
+                        <p>{selectedSellerProfile.usuario.email || "No registrado"}</p>
+                      </article>
+                      <article>
+                        <strong>Celular</strong>
+                        <p>{selectedSellerProfile.usuario.telefono || "No registrado"}</p>
+                      </article>
+                    </div>
+
+                    <div className="admin-payment-panel">
+                      <div className="panel-head panel-head-compact">
+                        <h3>Metodos de pago</h3>
+                        <span>Solo informacion del usuario</span>
+                      </div>
+
+                      <div className="admin-profile-list">
+                        {selectedSellerProfile.metodosPago.length ? (
+                          selectedSellerProfile.metodosPago.map((method) => (
+                            <article key={method.id} className="admin-profile-row">
+                              <div>
+                                <strong>{method.tipoMetodoPago || "Metodo registrado"}</strong>
+                                <p>{method.numero || method.titular || "Sin detalle"}</p>
+                              </div>
+                              <span>{method.qrUrl ? "Con QR" : "Sin QR"}</span>
+                            </article>
+                          ))
+                        ) : (
+                          <article className="mini-item">
+                            <div>
+                              <strong>Sin metodos de pago</strong>
+                              <p>Este usuario aun no registro metodos de pago.</p>
+                            </div>
+                            <span>0</span>
+                          </article>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ) : null}
 
                 {selectedProfileTab === "prendas" ? (
                   <div className="admin-profile-list">
-                    {selectedProducts.length ? (
-                      selectedProducts.map((product) => (
+                    {selectedPublishedProducts.length ? (
+                      selectedPublishedProducts.map((product) => (
+                        <article key={product.id} className="admin-profile-row">
+                          <div>
+                            <strong>{product.nombre || "Prenda sin nombre"}</strong>
+                            <p>
+                              {product.categoria || "Categoria"} - {product.talla || "Sin talla"} - {product.estadoPublicacion || "Sin estado"}
+                            </p>
+                          </div>
+                          <div className="mini-actions">
+                            <span>{formatAdminMoney(product.precio)}</span>
+                            <button
+                              type="button"
+                              className="mini-action"
+                              onClick={() => handleAdminProductAction(product.id, "pausar")}
+                            >
+                              Pausar publicacion
+                            </button>
+                            <button
+                              type="button"
+                              className="mini-action mini-action-danger"
+                              onClick={() => handleAdminProductAction(product.id, "eliminar")}
+                            >
+                              Eliminar publicacion
+                            </button>
+                          </div>
+                        </article>
+                      ))
+                    ) : (
+                      <article className="mini-item">
+                        <div>
+                          <strong>Sin prendas publicadas</strong>
+                          <p>Este usuario no tiene publicaciones activas por ahora.</p>
+                        </div>
+                        <span>0</span>
+                      </article>
+                    )}
+                  </div>
+                ) : null}
+
+                {selectedProfileTab === "ventas" ? (
+                  <div className="admin-profile-list">
+                    {selectedSoldProducts.length ? (
+                      selectedSoldProducts.map((product) => (
                         <article key={product.id} className="admin-profile-row">
                           <div>
                             <strong>{product.nombre || "Prenda sin nombre"}</strong>
@@ -476,8 +507,8 @@ function AdminDashboardPage() {
                     ) : (
                       <article className="mini-item">
                         <div>
-                          <strong>Sin prendas registradas</strong>
-                          <p>Este usuario aun no publico prendas.</p>
+                          <strong>Sin prendas vendidas</strong>
+                          <p>Este usuario aun no registra prendas vendidas.</p>
                         </div>
                         <span>0</span>
                       </article>
@@ -485,29 +516,25 @@ function AdminDashboardPage() {
                   </div>
                 ) : null}
 
-                {selectedProfileTab === "ventas" ? (
-                  <div className="admin-proof-list">
-                    {selectedSales.length ? (
-                      selectedSales.map((proof) => (
-                        <article key={proof.id} className="admin-proof-card">
+                {selectedProfileTab === "intercambiadas" ? (
+                  <div className="admin-profile-list">
+                    {selectedExchangedProducts.length ? (
+                      selectedExchangedProducts.map((product) => (
+                        <article key={product.id} className="admin-profile-row">
                           <div>
-                            <strong>{proof.prendaNombre || "Prenda sin nombre"}</strong>
-                            <p>Comprador: {proof.compradorNombre || proof.compradorEmail || "No registrado"}</p>
-                            <p>Monto: {formatAdminMoney(proof.monto)} - {proof.estado}</p>
-                            <p>{proof.creadoEn ? new Date(proof.creadoEn).toLocaleString("es-PE") : ""}</p>
+                            <strong>{product.nombre || "Prenda sin nombre"}</strong>
+                            <p>
+                              {product.categoria || "Categoria"} - {product.talla || "Sin talla"} - {product.estadoPublicacion || "Sin estado"}
+                            </p>
                           </div>
-                          {proof.comprobanteUrl ? (
-                            <a href={proof.comprobanteUrl} target="_blank" rel="noreferrer">
-                              <img src={proof.comprobanteUrl} alt="Comprobante de pago" />
-                            </a>
-                          ) : null}
+                          <span>{formatAdminMoney(product.precio)}</span>
                         </article>
                       ))
                     ) : (
                       <article className="mini-item">
                         <div>
-                          <strong>Sin ventas recibidas</strong>
-                          <p>Cuando reciba comprobantes por sus prendas, apareceran aqui.</p>
+                          <strong>Sin prendas intercambiadas</strong>
+                          <p>Este usuario aun no registra intercambios cerrados.</p>
                         </div>
                         <span>0</span>
                       </article>
@@ -549,81 +576,86 @@ function AdminDashboardPage() {
           </section>
         ) : null}
 
-        {activeSection === "movimientos" ? (
-          <section className="dashboard-panel admin-section-panel">
-            <div className="panel-head">
-              <h2>Compras y ventas</h2>
-              <span>Todos los comprobantes subidos por compradores</span>
-            </div>
-
-            <div className="admin-proof-list">
-              {paymentProofs.length ? (
-                paymentProofs.map((proof) => (
-                  <article key={proof.id} className="admin-proof-card">
-                    <div>
-                      <strong>{proof.prendaNombre || "Prenda sin nombre"}</strong>
-                      <p>Comprador: {proof.compradorNombre || proof.compradorEmail || proof.compradorId}</p>
-                      <p>Vendedor: {proof.vendedorNombre || proof.vendedorId}</p>
-                      <p>Monto: S/ {Number(proof.monto || 0).toFixed(2)} - {proof.estado}</p>
-                      <p>{proof.creadoEn ? new Date(proof.creadoEn).toLocaleString("es-PE") : ""}</p>
-                    </div>
-                    {proof.comprobanteUrl ? (
-                      <a href={proof.comprobanteUrl} target="_blank" rel="noreferrer">
-                        <img src={proof.comprobanteUrl} alt="Comprobante de compra" />
-                      </a>
-                    ) : null}
-                  </article>
-                ))
-              ) : (
-                <article className="mini-item">
-                  <div>
-                    <strong>Sin comprobantes registrados</strong>
-                    <p>Cuando un comprador suba un comprobante, aparecera aqui.</p>
-                  </div>
-                  <span>0</span>
-                </article>
-              )}
-            </div>
-          </section>
-        ) : null}
-
         {activeSection === "reclamos" ? (
           <section className="dashboard-panel admin-section-panel">
             <div className="panel-head">
               <h2>Reclamos</h2>
-              <span>Actualizar estado del caso</span>
+              <span>Revisar casos, responder y cerrar reclamos</span>
             </div>
 
             <div className="mini-list">
               {claims.map((claim) => (
-                <article key={claim.id} className="mini-item mini-item-stack">
-                  <div>
-                    <strong>#{claim.id} - {claim.motivo}</strong>
-                    <p>{claim.nombrePrenda || claim.descripcion}</p>
-                    <p>Usuario: {claim.nombreUsuarioCreador}</p>
-                    {claim.comprobanteId ? <p>Comprobante: {claim.comprobanteId}</p> : null}
+                <article key={claim.id} className="admin-claim-card">
+                  <div className="admin-claim-top">
+                    <div>
+                      <p className="admin-claim-code">Reclamo registrado</p>
+                      <h3>{claim.motivo || "Reclamo registrado"}</h3>
+                    </div>
+                    <span className={`admin-claim-badge admin-claim-badge-${String(claim.estado || "PENDIENTE").toLowerCase()}`}>
+                      {formatClaimStatusLabel(claim.estado)}
+                    </span>
                   </div>
-                  <div className="mini-actions">
-                    <textarea
-                      rows="2"
-                      value={claimResponses[claim.id] ?? claim.respuestaAdmin ?? ""}
-                      placeholder="Escribe la solucion o respuesta"
-                      onChange={(event) =>
-                        setClaimResponses((current) => ({
-                          ...current,
-                          [claim.id]: event.target.value,
-                        }))
-                      }
-                    />
-                    <select
-                      value={claim.estado}
-                      onChange={(event) => handleClaimState(claim.id, event.target.value)}
+
+                  <div className="admin-claim-grid">
+                    <article className="admin-claim-info">
+                      <strong>Usuario</strong>
+                      <p>{claim.nombreUsuarioCreador || "No registrado"}</p>
+                    </article>
+                    <article className="admin-claim-info">
+                      <strong>Prenda vinculada</strong>
+                      <p>{claim.nombrePrenda || "No especificada"}</p>
+                    </article>
+                    <article className="admin-claim-info">
+                      <strong>Origen</strong>
+                      <p>{claim.origen || "General"}</p>
+                    </article>
+                    <article className="admin-claim-info">
+                      <strong>Comprobante</strong>
+                      <p>{claim.comprobanteId || "No vinculado"}</p>
+                    </article>
+                  </div>
+
+                  <div className="admin-claim-message">
+                    <strong>Reclamo del usuario</strong>
+                    <p>{claim.descripcion || "El usuario no agregó una descripción adicional."}</p>
+                  </div>
+
+                  <div className="admin-claim-form">
+                    <label className="admin-claim-field admin-claim-field-wide">
+                      <span>Respuesta del administrador</span>
+                      <textarea
+                        rows="4"
+                        value={claimResponses[claim.id] ?? claim.respuestaAdmin ?? ""}
+                        placeholder="Escribe la respuesta o solución para el usuario"
+                        onChange={(event) =>
+                          setClaimResponses((current) => ({
+                            ...current,
+                            [claim.id]: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+
+                    <label className="admin-claim-field">
+                      <span>Estado del reclamo</span>
+                      <select
+                        value={claim.estado}
+                        onChange={(event) => handleClaimState(claim.id, event.target.value)}
+                      >
+                        <option value="PENDIENTE">PENDIENTE</option>
+                        <option value="EN_REVISION">EN_REVISION</option>
+                        <option value="RESUELTO">RESUELTO</option>
+                        <option value="RECHAZADO">RECHAZADO</option>
+                      </select>
+                    </label>
+
+                    <button
+                      type="button"
+                      className="mini-action admin-claim-submit"
+                      onClick={() => handleClaimState(claim.id, claim.estado)}
                     >
-                      <option value="PENDIENTE">PENDIENTE</option>
-                      <option value="EN_REVISION">EN_REVISION</option>
-                      <option value="RESUELTO">RESUELTO</option>
-                      <option value="RECHAZADO">RECHAZADO</option>
-                    </select>
+                      Enviar respuesta del admin
+                    </button>
                   </div>
                 </article>
               ))}

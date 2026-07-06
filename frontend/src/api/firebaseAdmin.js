@@ -95,18 +95,16 @@ export async function fetchAdminPaymentProofsFromFirebase() {
 
 export async function fetchAdminStatsFromFirebase() {
   const db = getFirebaseDb();
-  const [usersSnapshot, productsSnapshot, claimsSnapshot, proofsSnapshot] = await Promise.all([
+  const [usersSnapshot, productsSnapshot, claimsSnapshot] = await Promise.all([
     getDocs(collection(db, USERS_COLLECTION)),
     getDocs(collection(db, PRODUCTS_COLLECTION)),
     getDocs(collection(db, CLAIMS_COLLECTION)),
-    getDocs(collection(db, PAYMENT_PROOFS_COLLECTION)),
   ]);
 
   const users = usersSnapshot.docs.map(normalizeDocument);
   const regularUsers = users.filter((item) => item.rol !== "ROLE_ADMIN");
   const products = productsSnapshot.docs.map(normalizeDocument).filter((item) => !item.eliminado);
   const claims = claimsSnapshot.docs.map(normalizeDocument);
-  const proofs = proofsSnapshot.docs.map(normalizeDocument);
 
   const usuariosTotales = regularUsers.filter((item) => !item.eliminado).length;
   const usuariosActivos = regularUsers.filter(
@@ -117,16 +115,7 @@ export async function fetchAdminStatsFromFirebase() {
   ).length;
   const prendasPublicadas = products.filter((item) => item.estadoPublicacion === "PUBLICADA").length;
   const soldProducts = products.filter((item) => item.estadoPublicacion === "VENDIDA");
-  const exchangedProducts = products.filter((item) => item.estadoPublicacion === "INTERCAMBIADA");
   const prendasVendidas = soldProducts.length;
-  const prendasIntercambiadas = exchangedProducts.length;
-  const prendasReutilizadas = prendasVendidas + prendasIntercambiadas;
-  const montoComprobantes = proofs.reduce((total, item) => total + Number(item.monto || 0), 0);
-  const montoVendidas = soldProducts.reduce((total, item) => total + Number(item.precio || 0), 0);
-  const montoIntercambiadas = exchangedProducts.reduce(
-    (total, item) => total + Number(item.precio || 0),
-    0,
-  );
   const reclamosPendientes = claims.filter((item) =>
     ["PENDIENTE", "EN_REVISION"].includes(item.estado),
   ).length;
@@ -138,19 +127,39 @@ export async function fetchAdminStatsFromFirebase() {
     usuariosBaneados,
     prendasPublicadas,
     prendasVendidas,
-    prendasIntercambiadas,
-    reclamosTotales: claims.length,
-    comprobantesTotales: proofsSnapshot.docs.length,
-    comprasComprobadas: proofs.length,
-    montoComprobantes: Number(montoComprobantes.toFixed(2)),
-    montoVendidas: Number(montoVendidas.toFixed(2)),
-    montoIntercambiadas: Number(montoIntercambiadas.toFixed(2)),
     reclamosPendientes,
     reclamosResueltos,
-    ticketPromedio: proofs.length ? Number((montoComprobantes / proofs.length).toFixed(2)) : 0,
-    prendasReutilizadas,
-    impactoAmbientalEstimadoKgCo2: Number((prendasReutilizadas * 2.5).toFixed(2)),
   };
+}
+
+export async function pauseAdminProductInFirebase(id) {
+  const db = getFirebaseDb();
+  const productRef = doc(db, PRODUCTS_COLLECTION, String(id));
+  const snapshot = await getDoc(productRef);
+
+  if (!snapshot.exists()) {
+    throw new Error("La prenda no existe.");
+  }
+
+  await updateDoc(productRef, {
+    estadoPublicacion: "PAUSADA",
+    actualizadoEn: new Date().toISOString(),
+  });
+
+  const updatedSnapshot = await getDoc(productRef);
+  return normalizeDocument(updatedSnapshot);
+}
+
+export async function deleteAdminProductInFirebase(id) {
+  const db = getFirebaseDb();
+  const productRef = doc(db, PRODUCTS_COLLECTION, String(id));
+  const snapshot = await getDoc(productRef);
+
+  if (!snapshot.exists()) {
+    return;
+  }
+
+  await deleteDoc(productRef);
 }
 
 export async function banAdminUserInFirebase(id) {

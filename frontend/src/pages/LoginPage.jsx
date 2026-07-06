@@ -101,7 +101,6 @@ function LoginPage() {
 
             <div className="auth-inline-note">
               <span>Acceso seguro con Firebase Auth para web y móvil.</span>
-              <span className="auth-muted-note">Recuperación de contraseña pendiente.</span>
             </div>
 
             {status.message ? (

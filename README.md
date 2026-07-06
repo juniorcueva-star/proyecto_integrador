@@ -1,93 +1,136 @@
 # Estilo IA
 
-Estilo IA es una plataforma web para publicar, explorar y vender prendas de vestir. El proyecto incluye categorías para prendas de **hombre**, **mujer** y **unisex**, además de una sección de **recomendación con IA**. Actualmente, la pasarela de pago está pendiente de integración y será manejada como una demo.
+Marketplace web de moda circular para publicar, vender, intercambiar y comprar prendas. Usa Firebase para usuarios, catalogo, imagenes, comprobantes y reclamos.
 
-## Tecnologías utilizadas
+## Tecnologias
 
-**Backend:**
+- React + Vite
+- Firebase Auth
+- Firestore
+- Firebase Storage
+- Spring Boot + Java 21
+- OpenAI/Gemini opcional para funciones IA desde backend
 
-* Java
-* Spring Boot
-* Maven
+## Requisitos
 
-**Frontend:**
+- Node.js 20+
+- npm
+- Java 21
+- Git
+- Cuenta/proyecto Firebase con Auth, Firestore y Storage activos
 
-* React
-* Vite
-* npm
-
-## Funcionalidades principales
-
-* Panel informativo inicial de la aplicación.
-* Registro de usuario.
-* Inicio de sesión.
-* Navegación por prendas de hombre, mujer y unisex.
-* Sección de recomendación IA.
-* Perfil de usuario.
-* Publicación de prendas desde el perfil.
-* Visualización de prendas vendidas.
-* Demo de flujo de compra, sin pasarela de pago real.
-
-## Flujo de la aplicación
-
-1. El usuario ingresa a la plataforma.
-2. Visualiza un panel informativo con opciones para iniciar sesión o crear una cuenta.
-3. Al ingresar, encuentra una cabecera con las categorías principales.
-4. Desde la esquina del perfil puede publicar sus prendas y revisar sus prendas vendidas.
-5. La pasarela de pago todavía no está integrada, por lo que el proyecto funciona como demo.
-
-## Cómo levantar el proyecto
-
-Para ejecutar el proyecto, se debe levantar primero el backend y luego el frontend.
-
-### 1. Levantar el backend
-
-Abrir una terminal en la carpeta principal del proyecto:
+## Clonar
 
 ```bash
-cd estilo-ia
+git clone URL_DEL_REPOSITORIO
+cd "PROYECTO INTEGRADOR"
 ```
 
-Ejecutar Spring Boot:
+## Configurar frontend
+
+Crear:
 
 ```bash
-.\mvnw.cmd spring-boot:run
+frontend/.env.local
 ```
 
-### 2. Levantar el frontend
+Plantilla:
 
-Abrir otra terminal e ingresar a la carpeta del frontend:
-
-```bash
-cd estilo-ia/frontend
+```env
+VITE_PRODUCTS_DATA_SOURCE=firebase
+VITE_AUTH_SOURCE=firebase
+VITE_FIREBASE_API_KEY=TU_API_KEY
+VITE_FIREBASE_AUTH_DOMAIN=TU_PROJECT_ID.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=TU_PROJECT_ID
+VITE_FIREBASE_STORAGE_BUCKET=TU_PROJECT_ID.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=TU_MESSAGING_SENDER_ID
+VITE_FIREBASE_APP_ID=TU_APP_ID
+VITE_BACKEND_URL=http://localhost:8080
 ```
 
-Instalar dependencias si es la primera vez:
+## Ejecutar frontend
 
 ```bash
+cd frontend
 npm install
-```
-
-Ejecutar el frontend:
-
-```bash
 npm run dev
 ```
 
-### 3. Abrir la aplicación
-
-Ingresar desde el navegador al siguiente enlace:
+Abrir:
 
 ```bash
-http://localhost:5173/
+http://localhost:5173
 ```
 
-## Estado del proyecto
+## Backend IA opcional
 
-El proyecto se encuentra en etapa de desarrollo y demostración.
-La parte principal de navegación, autenticación, perfil y publicación de prendas está enfocada en mostrar el funcionamiento de la plataforma. La integración de pagos queda pendiente para una versión futura.
+Solo es necesario si se probaran funciones IA desde servidor.
+
+Crear:
+
+```bash
+estilo-ia/application-secrets.properties
+```
+
+OpenAI:
+
+```properties
+app.ai.provider=openai
+app.ai.api-key=TU_OPENAI_API_KEY
+app.ai.model=gpt-4.1-mini
+```
+
+Gemini:
+
+```properties
+app.ai.provider=gemini
+app.ai.api-key=TU_GEMINI_API_KEY
+app.ai.model=gemini-2.5-flash
+```
+
+Ejecutar:
+
+```bash
+cd estilo-ia
+.\mvnw.cmd spring-boot:run
+```
+
+Backend:
+
+```bash
+http://localhost:8080
+```
+
+## Firebase reglas
+
+Si se necesita desplegar reglas:
+
+```bash
+firebase login
+firebase use TU_PROJECT_ID
+firebase deploy --only firestore,storage
+```
+
+## Admin
+
+Crear una cuenta normal y en Firestore cambiar en `usuarios`:
+
+```txt
+rol = ROLE_ADMIN
+```
+
+Cerrar sesion y volver a ingresar.
+
+## No subir a GitHub
+
+- `.env.local`
+- `application-secrets.properties`
+- claves API
+- `node_modules`
+- `dist`
+- `target`
+- `uploads`
 
 ## Autor
 
-**Junior Cueva Fabian**
-
+Junior Cueva Fabian

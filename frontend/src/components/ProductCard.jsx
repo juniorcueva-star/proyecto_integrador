@@ -21,8 +21,9 @@ function ProductCard({ product }) {
   const mediaStyle = imageUrl
     ? {
         backgroundImage: `linear-gradient(rgba(37, 52, 32, 0.08), rgba(44, 33, 25, 0.1)), url("${imageUrl}")`,
-        backgroundSize: "cover",
+        backgroundSize: "contain",
         backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
       }
     : undefined;
 
@@ -37,18 +38,12 @@ function ProductCard({ product }) {
             className="product-media-hover"
             style={{
               backgroundImage: `linear-gradient(rgba(37, 52, 32, 0.08), rgba(44, 33, 25, 0.1)), url("${hoverImageUrl}")`,
+              backgroundSize: "contain",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
             }}
           ></span>
         ) : null}
-        <span
-          className={
-            normalizedProduct.status === "Intercambio"
-              ? "status-badge status-badge-alt"
-              : "status-badge"
-          }
-        >
-          {normalizedProduct.status}
-        </span>
       </div>
 
         <div className="product-content">

@@ -1504,6 +1504,7 @@ select {
   font-size: 0.95rem;
 }
 
+.recommendation-helper,
 .tryon-helper {
   margin: 0 0 1rem;
   color: var(--text-soft);
@@ -1894,6 +1895,103 @@ select {
   margin-top: 1.5rem;
 }
 
+.brand-marquee-panel {
+  overflow: hidden;
+}
+
+.brand-marquee-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.15rem;
+}
+
+.brand-marquee-head span {
+  color: var(--text-soft);
+}
+
+.brand-marquee-shell {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.6rem;
+  background: #0d0f0d;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 18px 40px rgba(12, 12, 12, 0.24);
+}
+
+.brand-marquee-shell::before,
+.brand-marquee-shell::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 5rem;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.brand-marquee-shell::before {
+  left: 0;
+  background: linear-gradient(90deg, rgba(13, 15, 13, 1), rgba(13, 15, 13, 0));
+}
+
+.brand-marquee-shell::after {
+  right: 0;
+  background: linear-gradient(270deg, rgba(13, 15, 13, 1), rgba(13, 15, 13, 0));
+}
+
+.brand-marquee-track {
+  display: flex;
+  align-items: center;
+  gap: 3.2rem;
+  width: max-content;
+  padding: 1.65rem 0;
+  animation: brand-marquee-scroll 26s linear infinite;
+}
+
+.brand-marquee-item {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  min-width: clamp(8rem, 13vw, 12rem);
+  min-height: 5rem;
+  padding: 0.45rem 0.65rem;
+  background: #0d0f0d;
+  opacity: 0.94;
+}
+
+.brand-marquee-logo {
+  width: 100%;
+  max-width: 11rem;
+  max-height: 4.1rem;
+  object-fit: contain;
+  object-position: center;
+  filter: grayscale(1) invert(1) brightness(1.08) contrast(1.12);
+  mix-blend-mode: screen;
+}
+
+.brand-marquee-text {
+  color: rgba(255, 255, 255, 0.94);
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 2.8vw, 2.7rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+@keyframes brand-marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 .wardrobe-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1971,13 +2069,14 @@ select {
   position: relative;
   display: grid;
   place-items: center;
-  min-height: 18rem;
+  min-height: 22rem;
   overflow: hidden;
   background:
-    radial-gradient(circle at 50% 35%, rgba(97, 112, 72, 0.12), transparent 16rem),
-    linear-gradient(180deg, #eef2ec, #e5ddd1);
+    radial-gradient(circle at 50% 45%, rgba(97, 112, 72, 0.06), transparent 15rem),
+    linear-gradient(180deg, #ffffff, #f4f2ed);
   background-position: center;
-  background-size: cover;
+  background-repeat: no-repeat;
+  background-size: contain;
   color: var(--olive-strong);
   font-size: 1.35rem;
   font-weight: 800;
@@ -1989,7 +2088,8 @@ select {
   z-index: 0;
   display: block;
   background-position: center;
-  background-size: cover;
+  background-repeat: no-repeat;
+  background-size: contain;
   opacity: 0;
   transition: opacity 220ms ease;
 }
@@ -2003,7 +2103,7 @@ select {
   position: absolute;
   inset: 0;
   z-index: 1;
-  background: linear-gradient(180deg, rgba(22, 30, 20, 0.02), rgba(22, 30, 20, 0.1));
+  background: linear-gradient(180deg, rgba(22, 30, 20, 0.01), rgba(22, 30, 20, 0.035));
   pointer-events: none;
 }
 
@@ -2422,6 +2522,24 @@ select {
   color: var(--ink);
 }
 
+.detail-exchange-box {
+  margin-top: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 1.25rem;
+  background: rgba(255, 253, 248, 0.72);
+}
+
+.detail-exchange-box strong {
+  color: var(--ink);
+}
+
+.detail-exchange-box p {
+  margin: 0.45rem 0 0;
+  color: var(--text-soft);
+  line-height: 1.6;
+}
+
 .detail-actions {
   display: flex;
   gap: 1rem;
@@ -2527,6 +2645,8 @@ select {
 }
 
 .checkout-payment-card {
+  position: relative;
+  overflow: hidden;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 8.5rem;
   gap: 1rem;
@@ -2535,6 +2655,36 @@ select {
   border: 1px solid var(--border-soft);
   border-radius: 1rem;
   background: rgba(255, 253, 248, 0.72);
+}
+
+.checkout-payment-card::before {
+  content: "";
+  position: absolute;
+  inset: auto -3rem -4rem auto;
+  width: 10rem;
+  height: 10rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  pointer-events: none;
+}
+
+.checkout-payment-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.checkout-payment-card-yape {
+  border-color: rgba(115, 45, 142, 0.3);
+  background:
+    linear-gradient(135deg, #6d1f8f 0%, #8f2fb1 55%, #c147c9 100%);
+  box-shadow: 0 18px 40px rgba(109, 31, 143, 0.22);
+}
+
+.checkout-payment-card-plin {
+  border-color: rgba(0, 146, 196, 0.3);
+  background:
+    linear-gradient(135deg, #00a6d6 0%, #15c7d6 45%, #3ee6c5 100%);
+  box-shadow: 0 18px 40px rgba(0, 146, 196, 0.22);
 }
 
 .checkout-payment-card strong {
@@ -2556,6 +2706,20 @@ select {
   line-height: 1.45;
 }
 
+.checkout-payment-card-yape strong,
+.checkout-payment-card-yape p,
+.checkout-payment-card-yape span,
+.checkout-payment-card-plin strong,
+.checkout-payment-card-plin p,
+.checkout-payment-card-plin span {
+  color: #fff;
+}
+
+.checkout-payment-card-yape p,
+.checkout-payment-card-plin p {
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.18);
+}
+
 .checkout-payment-card img,
 .checkout-qr-empty {
   width: 8.5rem;
@@ -2564,6 +2728,14 @@ select {
   border-radius: 0.8rem;
   object-fit: cover;
   background: #fff;
+}
+
+.checkout-payment-card-yape img,
+.checkout-payment-card-plin img,
+.checkout-payment-card-yape .checkout-qr-empty,
+.checkout-payment-card-plin .checkout-qr-empty {
+  border-color: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
 }
 
 .checkout-qr-empty {
@@ -2628,13 +2800,6 @@ select {
   border-top: 1px solid var(--border-soft);
 }
 
-.admin-seller-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
 .admin-profile-tabs {
   display: flex;
   gap: 0.7rem;
@@ -2666,8 +2831,32 @@ select {
   margin-top: 1.25rem;
 }
 
+.admin-profile-resume {
+  display: grid;
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+}
+
 .admin-profile-summary {
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.admin-payment-panel {
+  padding: 1.1rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 1.2rem;
+  background: rgba(255, 253, 248, 0.74);
+}
+
+.panel-head-compact {
+  margin-bottom: 0.3rem;
+}
+
+.panel-head-compact h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 2vw, 1.5rem);
+  color: var(--ink);
 }
 
 .admin-profile-summary article,
@@ -3002,6 +3191,132 @@ select {
   color: #8f3d25;
 }
 
+.admin-claim-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 1.35rem;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.admin-claim-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-claim-code {
+  margin: 0 0 0.35rem;
+  color: var(--olive);
+  font-weight: 800;
+}
+
+.admin-claim-top h3 {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: clamp(1.3rem, 2vw, 1.8rem);
+}
+
+.admin-claim-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.4rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.admin-claim-badge-pendiente {
+  background: rgba(196, 146, 30, 0.14);
+  color: #8c6200;
+}
+
+.admin-claim-badge-en_revision {
+  background: rgba(51, 104, 179, 0.14);
+  color: #28528e;
+}
+
+.admin-claim-badge-resuelto {
+  background: rgba(97, 112, 72, 0.14);
+  color: var(--olive);
+}
+
+.admin-claim-badge-rechazado {
+  background: rgba(164, 78, 40, 0.14);
+  color: #a44e28;
+}
+
+.admin-claim-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.85rem;
+}
+
+.admin-claim-info,
+.admin-claim-message {
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 1rem;
+  background: rgba(255, 253, 248, 0.78);
+}
+
+.admin-claim-info strong,
+.admin-claim-message strong {
+  color: var(--ink);
+}
+
+.admin-claim-info p,
+.admin-claim-message p {
+  margin: 0.35rem 0 0;
+  color: var(--text-soft);
+  line-height: 1.6;
+}
+
+.admin-claim-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(14rem, 0.8fr) auto;
+  gap: 0.9rem;
+  align-items: end;
+}
+
+.admin-claim-field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.admin-claim-field span {
+  color: var(--ink);
+  font-weight: 800;
+  text-align: left;
+}
+
+.admin-claim-field textarea,
+.admin-claim-field select {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--text);
+  font: inherit;
+}
+
+.admin-claim-field textarea {
+  resize: vertical;
+  min-height: 8rem;
+}
+
+.admin-claim-submit {
+  min-height: 3rem;
+  padding-inline: 1.2rem;
+}
+
 .mini-action-danger:hover {
   border-color: rgba(143, 61, 37, 0.36);
   background: rgba(189, 78, 50, 0.1);
@@ -3227,6 +3542,20 @@ select {
   .wardrobe-grid,
   .user-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .brand-marquee-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .brand-marquee-track {
+    gap: 2rem;
+    padding: 1.3rem 0;
+  }
+
+  .brand-marquee-item {
+    font-size: clamp(1.15rem, 5vw, 2rem);
   }
 
   .hero-frame {

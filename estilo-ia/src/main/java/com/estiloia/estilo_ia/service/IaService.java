@@ -19,7 +19,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.multipart.MultipartFile;
@@ -116,16 +115,19 @@ public class IaService {
         validarFotoAnalisis(foto);
 
         if (apiKey == null || apiKey.isBlank()) {
-            return construirSugerenciaPrendaBasica();
+            throw new ResponseStatusException(
+                    org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE,
+                    "Falta configurar la API key de IA en el backend"
+            );
         }
 
         try {
-            JsonNode json = llamarGeminiPrenda(foto);
+            JsonNode json = llamarModeloPrendaFoto(foto);
             return new IaPrendaSugeridaResponse(
-                    textoO(json, "nombre", "Prenda sugerida"),
-                    textoO(json, "descripcion", "Prenda lista para publicarse en el catalogo."),
+                    textoO(json, "nombre", "Prenda sin nombre"),
+                    textoO(json, "descripcion", "Describe la prenda antes de publicar."),
                     textoO(json, "marca", "Sin marca visible"),
-                    textoO(json, "color", "Negro"),
+                    textoO(json, "color", "No definido"),
                     normalizarTalla(textoO(json, "talla", "M")),
                     normalizarCategoria(textoO(json, "categoria", "OTRO")),
                     normalizarEstadoFisico(textoO(json, "estadoFisico", "BUEN_ESTADO")),
@@ -134,7 +136,7 @@ public class IaService {
                     leerArrayTexto(json.path("observaciones"))
             );
         } catch (ResponseStatusException ex) {
-            return construirSugerenciaPrendaBasica();
+            throw ex;
         }
     }
 
@@ -567,23 +569,15 @@ public class IaService {
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", model);
-        body.put("input", List.of(
+        body.put("messages", List.of(
                 Map.of(
                         "role", "user",
-                        "content", List.of(
-                                Map.of(
-                                        "type", "input_text",
-                                        "text", prompt
-                                )
-                        )
+                        "content", prompt
                 )
         ));
-        body.put("max_output_tokens", maxOutputTokens);
-        body.put("text", Map.of(
-                "format", Map.of(
-                        "type", "json_object"
-                )
-        ));
+        body.put("max_tokens", maxOutputTokens);
+        body.put("temperature", 0.2);
+        body.put("response_format", Map.of("type", "json_object"));
 
         JsonNode response = restClient.post()
                 .uri(aiUrl)
@@ -777,14 +771,29 @@ public class IaService {
         }
     }
 
-    private JsonNode llamarGeminiPrenda(MultipartFile foto) {
-        RestClient restClient = restClientBuilder.build();
-        String prompt = """
+    private JsonNode llamarModeloPrendaFoto(MultipartFile foto) {
+        if ("gemini".equalsIgnoreCase(provider)) {
+            return llamarGeminiPrenda(foto);
+        }
+
+        if ("openai".equalsIgnoreCase(provider) || "groq".equalsIgnoreCase(provider)) {
+            return llamarOpenAiPrenda(foto);
+        }
+
+        throw new ResponseStatusException(
+                org.springframework.http.HttpStatus.BAD_REQUEST,
+                "El proveedor configurado no soporta analisis de imagen de prenda"
+        );
+    }
+
+    private String promptAnalisisPrenda() {
+        return """
                 Analiza la foto de una prenda para un marketplace de ropa usada.
+                Identifica la prenda principal de la imagen. No uses respuestas genericas.
                 Devuelve SOLO JSON valido con esta estructura exacta:
                 {
-                  "nombre": "texto",
-                  "descripcion": "texto",
+                  "nombre": "titulo corto de 2 a 5 palabras",
+                  "descripcion": "descripcion comercial de 1 a 2 oraciones",
                   "marca": "texto",
                   "color": "texto",
                   "talla": "XS|S|M|L|XL|XXL|TALLA_28|TALLA_30|TALLA_32|TALLA_34|TALLA_36|TALLA_38|TALLA_40|TALLA_42|UNICA",
@@ -795,15 +804,90 @@ public class IaService {
                   "observaciones": ["obs1", "obs2"]
                 }
 
-                Reglas:
+                Reglas de clasificacion:
+                - El nombre debe ser corto, comercial y directo. Ejemplos: "Short veranero", "Camisa blanca", "Casaca marron", "Polo deportivo".
+                - No pongas detalles largos en el nombre; esos detalles van en la descripcion.
+                - La descripcion debe explayarse con detalles visibles: color, corte, textura, cierre, botones, hebilla, estilo, ocasion sugerida y estado aparente.
+                - Ejemplo de descripcion: "Short blanco con hebilla dorada y corte fresco, ideal para tardes de verano o looks casuales. Se aprecia en buen estado y listo para combinar con polos o camisas ligeras."
+                - Si la prenda llega por encima de la rodilla o es corta, clasificala como SHORT, no como PANTALON.
+                - Si se ve como bermuda, short, shorts, pantaloncillo o pantalon corto, usa categoria SHORT.
+                - Si es pantalon largo hasta tobillos, usa PANTALON.
                 - Si no se ve la marca, usa "Sin marca visible".
-                - Si la prenda parece una polera, hoodie o sudadera, usa un nombre natural como "Polera negra con capucha" o "Polera oversize negra".
-                - Si se trata de una prenda abrigadora sin cierre visible, prioriza CHOMPA; si parece una prenda exterior con cierre o estructura de chaqueta, prioriza CASACA.
-                - Si la talla no se puede inferir con claridad, usa "M" para prendas superiores, "TALLA_32" para pantalones o "UNICA" para accesorios.
+                - Si la talla no se puede inferir con claridad, usa "M" para prendas superiores, "TALLA_32" para pantalones o shorts y "UNICA" para accesorios.
                 - El precio debe ser razonable para segunda mano en Peru.
-                - La descripcion debe ser breve, honesta y lista para publicar.
-                - No inventes detalles demasiado especificos si no se ven.
+                - La descripcion debe sonar natural, atractiva y honesta para marketplace.
+                - No inventes detalles especificos que no se ven.
                 """;
+    }
+
+    private JsonNode llamarOpenAiPrenda(MultipartFile foto) {
+        RestClient restClient = restClientBuilder.build();
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("model", model);
+        body.put("messages", List.of(
+                Map.of(
+                        "role", "user",
+                        "content", List.of(
+                                Map.of("type", "text", "text", promptAnalisisPrenda()),
+                                Map.of(
+                                        "type", "image_url",
+                                        "image_url", Map.of("url", construirDataUrl(foto))
+                                )
+                        )
+                )
+        ));
+        body.put("max_tokens", 650);
+        body.put("temperature", 0.1);
+        body.put("response_format", Map.of("type", "json_object"));
+
+        JsonNode response = restClient.post()
+                .uri(aiUrl)
+                .header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "application/json")
+                .body(body)
+                .exchange((request, clientResponse) -> {
+                    String rawBody;
+                    try {
+                        rawBody = new String(clientResponse.getBody().readAllBytes(), StandardCharsets.UTF_8);
+                    } catch (Exception e) {
+                        throw new ResponseStatusException(
+                                org.springframework.http.HttpStatus.BAD_GATEWAY,
+                                "No se pudo leer la respuesta de la API de IA"
+                        );
+                    }
+
+                    if (clientResponse.getStatusCode().isError()) {
+                        throw new ResponseStatusException(
+                                clientResponse.getStatusCode(),
+                                extraerMensajeErrorApi(rawBody)
+                        );
+                    }
+
+                    try {
+                        return objectMapper.readTree(rawBody);
+                    } catch (Exception e) {
+                        throw new ResponseStatusException(
+                                org.springframework.http.HttpStatus.BAD_GATEWAY,
+                                "La API de IA devolvio una respuesta no valida"
+                        );
+                    }
+                });
+
+        String contenido = extraerTextoRespuesta(response);
+        try {
+            return objectMapper.readTree(extraerJson(contenido));
+        } catch (Exception e) {
+            throw new ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_GATEWAY,
+                    "La respuesta de IA no tuvo un JSON valido"
+            );
+        }
+    }
+
+    private JsonNode llamarGeminiPrenda(MultipartFile foto) {
+        RestClient restClient = restClientBuilder.build();
+        String prompt = promptAnalisisPrenda();
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("contents", List.of(
@@ -1183,6 +1267,8 @@ public class IaService {
     private String normalizarCategoria(String valor) {
         return switch ((valor == null ? "" : valor.trim().toUpperCase())) {
             case "POLERA", "SUDADERA", "HOODIE" -> "CHOMPA";
+            case "SHORTS", "BERMUDA", "BERMUDAS", "PANTALON_CORTO", "PANTALON CORTO",
+                    "PANTALONCILLO" -> "SHORT";
             case "POLO", "CAMISA", "PANTALON", "SHORT", "CASACA", "CHOMPA", "VESTIDO", "FALDA",
                     "ZAPATOS", "ZAPATILLAS", "ACCESORIO", "OTRO" -> valor.trim().toUpperCase();
             default -> "OTRO";
@@ -1387,6 +1473,11 @@ public class IaService {
             if (content.isTextual()) {
                 return content.asText();
             }
+        }
+
+        JsonNode chatContent = response.path("choices").path(0).path("message").path("content");
+        if (chatContent.isTextual()) {
+            return chatContent.asText();
         }
 
         if (response.hasNonNull("output_text") && response.get("output_text").isTextual()) {

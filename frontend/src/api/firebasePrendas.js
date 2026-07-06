@@ -180,6 +180,7 @@ function buildFirebaseProductPayload(payload, currentImageUrl = "", currentSecon
   return {
     nombre: String(payload.nombre || "").trim(),
     descripcion: String(payload.descripcion || "").trim(),
+    intercambioDeseado: String(payload.intercambioDeseado || "").trim(),
     marca: finalBrand,
     genero: payload.genero || "UNISEX",
     color: String(payload.color || "").trim(),

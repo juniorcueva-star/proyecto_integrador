@@ -1,10 +1,11 @@
 import {
   banAdminUserInFirebase,
   deleteAdminUserInFirebase,
-  fetchAdminPaymentProofsFromFirebase,
+  deleteAdminProductInFirebase,
   fetchAdminSellerProfileFromFirebase,
   fetchAdminStatsFromFirebase,
   fetchAdminUsersFromFirebase,
+  pauseAdminProductInFirebase,
   reactivateAdminUserInFirebase,
 } from "./firebaseAdmin";
 import { fetchAdminClaims, updateAdminClaim } from "./reclamos";
@@ -21,10 +22,6 @@ export function fetchAdminSellerProfile(id) {
   return fetchAdminSellerProfileFromFirebase(id);
 }
 
-export function fetchAdminPaymentProofs() {
-  return fetchAdminPaymentProofsFromFirebase();
-}
-
 export function banAdminUser(id) {
   return banAdminUserInFirebase(id);
 }
@@ -35,6 +32,14 @@ export function reactivateAdminUser(id) {
 
 export function deleteAdminUser(id) {
   return deleteAdminUserInFirebase(id);
+}
+
+export function pauseAdminProduct(id) {
+  return pauseAdminProductInFirebase(id);
+}
+
+export function deleteAdminProduct(id) {
+  return deleteAdminProductInFirebase(id);
 }
 
 export { fetchAdminClaims, updateAdminClaim };

@@ -66,6 +66,7 @@ public class SecurityConfig {
 
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/ia/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/prendas/catalogo").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/prendas/catalogo/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/usuarios/*/perfil-publico").permitAll()

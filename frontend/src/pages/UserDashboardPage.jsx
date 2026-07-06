@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { logoutRequest } from "../api/auth";
-import { analyzeGarmentPhoto, generateVirtualTryOn, recommendOutfit } from "../api/ia";
+import { analyzeGarmentPhoto, recommendOutfit } from "../api/ia";
 import { fetchOwnPurchaseProofs, fetchOwnSalesProofs } from "../api/comprobantesPago";
 import {
   createPaymentMethod,
@@ -23,6 +23,11 @@ import {
 import { createClaim, fetchOwnClaims } from "../api/reclamos";
 import { fetchOwnProfile, updateOwnProfile } from "../api/usuarios";
 import ProductCard from "../components/ProductCard";
+import adidasLogo from "../assets/brands/adidas.png";
+import hmLogo from "../assets/brands/hym.png";
+import nikeLogo from "../assets/brands/nike.png";
+import poloLogo from "../assets/brands/polo.png";
+import zaraLogo from "../assets/brands/zara.png";
 import { garmentOptions } from "../data/staticData";
 import { clearAuthSession, getAuthSession } from "../utils/authStorage";
 import { keepDecimal, keepDigits, keepLettersAndSpaces } from "../utils/inputSanitizers";
@@ -55,10 +60,213 @@ const defaultBrandOptions = {
   opcionOtraMarca: "OTRA",
 };
 
+const featuredBrands = [
+  { name: "Polo Ralph Lauren", logo: poloLogo },
+  { name: "Nike", logo: nikeLogo },
+  { name: "Zara", logo: zaraLogo },
+  { name: "Mango", logo: null },
+  { name: "H&M", logo: hmLogo },
+  { name: "Adidas", logo: adidasLogo },
+];
+
+const userDashboardSections = ["inicio", "perfil", "pagos", "agregar", "armario", "ventas", "compras", "ia"];
+
+function getValidUserSection(value) {
+  return userDashboardSections.includes(value) ? value : "inicio";
+}
+
+function normalizeText(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function describeBodyType(contextura) {
+  const value = normalizeText(contextura);
+  if (value === "DELGADA") return "delgada";
+  if (value === "CONTEXTURA_GRUESA") return "ancha";
+  return "normal";
+}
+
+function getPreferredSizeProfile(height, bodyType) {
+  const numericHeight = Number(height) || 0;
+  const body = normalizeText(bodyType);
+
+  if (numericHeight < 150) {
+    return {
+      label: "talla S",
+      tops: ["S", "XS"],
+      bottoms: ["S", "TALLA_28"],
+      acceptable: ["XS", "S", "TALLA_28"],
+    };
+  }
+
+  if (numericHeight < 165) {
+    if (body === "CONTEXTURA_GRUESA") {
+      return {
+        label: "talla M",
+        tops: ["M"],
+        bottoms: ["M", "TALLA_30"],
+        acceptable: ["S", "M", "TALLA_30"],
+      };
+    }
+
+    return {
+      label: "talla S",
+      tops: ["S"],
+      bottoms: ["S", "TALLA_28", "TALLA_30"],
+      acceptable: ["XS", "S", "M", "TALLA_28", "TALLA_30"],
+    };
+  }
+
+  if (numericHeight <= 178) {
+    if (body === "DELGADA") {
+      return {
+        label: "talla S/M",
+        tops: ["S", "M"],
+        bottoms: ["S", "M", "TALLA_30"],
+        acceptable: ["S", "M", "TALLA_30", "TALLA_32"],
+      };
+    }
+
+    if (body === "CONTEXTURA_GRUESA") {
+      return {
+        label: "talla L",
+        tops: ["L"],
+        bottoms: ["L", "TALLA_34"],
+        acceptable: ["M", "L", "XL", "TALLA_32", "TALLA_34"],
+      };
+    }
+
+    return {
+      label: "talla M",
+      tops: ["M"],
+      bottoms: ["M", "TALLA_32"],
+      acceptable: ["M", "TALLA_30", "TALLA_32"],
+    };
+  }
+
+  if (body === "DELGADA") {
+    return {
+      label: "talla M/L",
+      tops: ["M", "L"],
+      bottoms: ["M", "L", "TALLA_32"],
+      acceptable: ["M", "L", "TALLA_32", "TALLA_34"],
+    };
+  }
+
+  if (body === "CONTEXTURA_GRUESA") {
+    return {
+      label: "talla XL",
+      tops: ["XL", "XXL"],
+      bottoms: ["XL", "TALLA_36"],
+      acceptable: ["L", "XL", "XXL", "TALLA_34", "TALLA_36"],
+    };
+  }
+
+  return {
+    label: "talla L",
+    tops: ["L"],
+    bottoms: ["L", "TALLA_34"],
+    acceptable: ["M", "L", "TALLA_32", "TALLA_34"],
+  };
+}
+
+function isBottomCategory(category) {
+  return ["PANTALON", "SHORT", "FALDA"].includes(normalizeText(category));
+}
+
+function getProductSizeMatch(product, form) {
+  const category = product.category || product.categoria;
+  const size = normalizeText(product.size || product.talla);
+  const profile = getPreferredSizeProfile(form.estaturaCm, form.contextura);
+  const preferredSizes = isBottomCategory(category) ? profile.bottoms : profile.tops;
+
+  return {
+    profile,
+    isPreferred: preferredSizes.includes(size),
+    isAcceptable: profile.acceptable.includes(size) || size === "UNICA",
+  };
+}
+
+function scoreSizeCompatibility(size, category, height, bodyType) {
+  const match = getProductSizeMatch(
+    { size, category },
+    {
+      estaturaCm: height,
+      contextura: bodyType,
+    },
+  );
+
+  if (match.isPreferred) return 10;
+  if (match.isAcceptable) return 4;
+  return -4;
+}
+
+function scoreProductForOutfit(product, form) {
+  const category = normalizeText(product.category || product.categoria);
+  const publicationType = normalizeText(product.tipoPublicacion);
+  const style = normalizeText(form.estilo);
+  const occasion = normalizeText(form.ocasion);
+  const weather = normalizeText(form.clima);
+  const height = Number(form.estaturaCm);
+  let score = 0;
+
+  if (["FORMAL", "ELEGANTE"].includes(style) && ["CAMISA", "PANTALON", "ZAPATOS", "VESTIDO", "FALDA", "CASACA", "ACCESORIO"].includes(category)) score += 5;
+  if (["CASUAL", "URBANO"].includes(style) && ["POLO", "PANTALON", "SHORT", "ZAPATILLAS", "CASACA", "CHOMPA", "ACCESORIO"].includes(category)) score += 5;
+  if (style === "DEPORTIVO" && ["POLO", "SHORT", "ZAPATILLAS", "CASACA"].includes(category)) score += 5;
+
+  if (["TRABAJO", "EVENTO"].includes(occasion) && ["CAMISA", "PANTALON", "ZAPATOS", "VESTIDO", "FALDA", "CASACA"].includes(category)) score += 4;
+  if (["SALIDA", "CLASES"].includes(occasion) && ["POLO", "PANTALON", "SHORT", "ZAPATILLAS", "CHOMPA", "CASACA", "ACCESORIO"].includes(category)) score += 4;
+
+  if (weather === "FRIO" && ["CASACA", "CHOMPA", "PANTALON"].includes(category)) score += 3;
+  if (weather === "CALOR" && ["POLO", "SHORT", "VESTIDO", "FALDA"].includes(category)) score += 3;
+  if (weather === "TEMPLADO" && ["CAMISA", "POLO", "PANTALON", "ZAPATILLAS"].includes(category)) score += 2;
+
+  if (["VENTA", "VENTA_E_INTERCAMBIO", ""].includes(publicationType)) score += 1;
+  score += scoreSizeCompatibility(product.size || product.talla, category, height, form.contextura);
+
+  return score;
+}
+
+function buildLocalOutfitRecommendation(form, catalog) {
+  const activeProducts = catalog.filter((product) => {
+    const state = normalizeText(product.estadoPublicacion || product.status);
+    return !state || state === "PUBLICADA" || state === "DISPONIBLE";
+  });
+
+  const preferredProducts = activeProducts.filter((product) => getProductSizeMatch(product, form).isPreferred);
+  const candidates = preferredProducts.length ? preferredProducts : activeProducts;
+  const preferredProfile = getPreferredSizeProfile(form.estaturaCm, form.contextura);
+
+  const referenciasCatalogo = [...candidates]
+    .sort((left, right) => scoreProductForOutfit(right, form) - scoreProductForOutfit(left, form))
+    .slice(0, 8);
+
+  return {
+    modoRespuesta: "FIREBASE_LOCAL",
+    resumenPerfilUsuario: `Perfil usado: ${form.estaturaCm} cm y contextura ${describeBodyType(form.contextura)}.`,
+    perfilVisual: "Recomendacion creada con prendas activas del catalogo.",
+    recomendacionGeneral: referenciasCatalogo.length
+      ? `Estas prendas encajan mejor con un estilo ${form.estilo.toLowerCase()} para ${form.ocasion.toLowerCase()}, clima ${form.clima.toLowerCase()} y ${preferredProfile.label}.`
+      : "No hay prendas activas suficientes para recomendar en este momento.",
+    notaPruebaVisual: "",
+    prendasSugeridas: referenciasCatalogo.slice(0, 4).map((product) => product.name || product.nombre),
+    razones: [
+      `Se priorizaron prendas compatibles con estilo ${form.estilo.toLowerCase()} y ocasion ${form.ocasion.toLowerCase()}.`,
+      `El clima ${form.clima.toLowerCase()} ajusta la seleccion hacia prendas mas ligeras, capas o piezas equilibradas.`,
+      `Para ${form.estaturaCm} cm y contextura ${describeBodyType(form.contextura)} se prioriza ${preferredProfile.label}.`,
+    ],
+    pasosSugeridos: [],
+    referenciasCatalogo,
+  };
+}
+
 function UserDashboardPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const session = getAuthSession();
-  const [activeSection, setActiveSection] = useState("inicio");
+  const [activeSection, setActiveSection] = useState(() =>
+    getValidUserSection(searchParams.get("seccion") || localStorage.getItem("userDashboardSection")),
+  );
   const [profile, setProfile] = useState(null);
   const [ownProducts, setOwnProducts] = useState([]);
   const [ownMethods, setOwnMethods] = useState([]);
@@ -76,6 +284,7 @@ function UserDashboardPage() {
     precioMaximo: "",
   });
   const [activeCatalogFilters, setActiveCatalogFilters] = useState({});
+  const [isPublishingProduct, setIsPublishingProduct] = useState(false);
   const [productStatus, setProductStatus] = useState({ type: "", message: "" });
   const [profileStatus, setProfileStatus] = useState({ type: "", message: "" });
   const [paymentStatus, setPaymentStatus] = useState({ type: "", message: "" });
@@ -98,6 +307,7 @@ function UserDashboardPage() {
   const [productForm, setProductForm] = useState({
     nombre: "",
     descripcion: "",
+    intercambioDeseado: "",
     marca: defaultBrandOptions.marcasReconocidas[0],
     marcaPersonalizada: "",
     genero: "UNISEX",
@@ -139,6 +349,35 @@ function UserDashboardPage() {
   const [profileForm, setProfileForm] = useState({
     telefono: session.telefono || "",
   });
+
+  function selectSection(section, options = {}) {
+    const nextSection = getValidUserSection(section);
+    setActiveSection(nextSection);
+    localStorage.setItem("userDashboardSection", nextSection);
+
+    if (options.syncUrl === false) {
+      return;
+    }
+
+    setSearchParams((currentParams) => {
+      const nextParams = new URLSearchParams(currentParams);
+      if (nextSection === "inicio") {
+        nextParams.delete("seccion");
+      } else {
+        nextParams.set("seccion", nextSection);
+      }
+      return nextParams;
+    }, { replace: true });
+  }
+
+  useEffect(() => {
+    const nextSection = getValidUserSection(
+      searchParams.get("seccion") || localStorage.getItem("userDashboardSection"),
+    );
+
+    localStorage.setItem("userDashboardSection", nextSection);
+    setActiveSection((current) => (current === nextSection ? current : nextSection));
+  }, [searchParams]);
 
   useEffect(() => {
     let isMounted = true;
@@ -383,8 +622,54 @@ function UserDashboardPage() {
     setActiveCatalogFilters({});
   }
 
+  function productMatchesCatalogFilters(product, filters = {}) {
+    if (!product || product.eliminado || product.estadoPublicacion !== "PUBLICADA") {
+      return false;
+    }
+
+    if (filters.genero && product.genero !== filters.genero) {
+      return false;
+    }
+
+    if (filters.categoria && product.categoria !== filters.categoria) {
+      return false;
+    }
+
+    const price = Number(product.precio || 0);
+    const min = filters.precioMinimo ? Number(filters.precioMinimo) : null;
+    const max = filters.precioMaximo ? Number(filters.precioMaximo) : null;
+
+    if (min !== null && price < min) {
+      return false;
+    }
+
+    if (max !== null && price > max) {
+      return false;
+    }
+
+    const search = String(filters.texto || "").trim().toLowerCase();
+    if (!search) {
+      return true;
+    }
+
+    return [
+      product.nombre,
+      product.name,
+      product.marca,
+      product.brand,
+      product.descripcion,
+      product.color,
+      product.nombreVendedor,
+      product.seller,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .includes(search);
+  }
+
   function handleGenderCatalog(genero) {
-    setActiveSection("inicio");
+    selectSection("inicio");
     setDashboardError("");
     setCatalogFilters((current) => ({ ...current, genero }));
     setActiveCatalogFilters((current) => ({ ...current, genero }));
@@ -515,13 +800,17 @@ function UserDashboardPage() {
 
   async function handleCreateProduct(event) {
     event.preventDefault();
-    setProductStatus({ type: "", message: "" });
+    if (isPublishingProduct) return;
+
+    setIsPublishingProduct(true);
+    setProductStatus({ type: "success", message: "Publicando prenda..." });
 
     try {
       const brandPayload = resolveBrandPayload(productForm);
       const productPayload = {
         nombre: productForm.nombre,
         descripcion: productForm.descripcion,
+        intercambioDeseado: productForm.intercambioDeseado,
         marca: brandPayload.marca,
         marcaPersonalizada: brandPayload.marcaPersonalizada,
         genero: productForm.genero,
@@ -536,11 +825,41 @@ function UserDashboardPage() {
       const created = productForm.imagen || productForm.imagenSecundaria
         ? await createProductWithImage(productPayload, productForm.imagen, productForm.imagenSecundaria)
         : await createProduct(productPayload);
+      const adaptedCreated = adaptProduct(created);
 
-      setOwnProducts((current) => [adaptProduct(created), ...current]);
+      setOwnProducts((current) => [
+        adaptedCreated,
+        ...current.filter((item) => String(item.id) !== String(adaptedCreated.id)),
+      ]);
+      setPublicCatalog((current) => {
+        if (!productMatchesCatalogFilters(adaptedCreated, activeCatalogFilters)) {
+          return current;
+        }
+
+        return [
+          adaptedCreated,
+          ...current.filter((item) => String(item.id) !== String(adaptedCreated.id)),
+        ];
+      });
+      setProfile((current) => {
+        if (!current?.estadisticas) return current;
+
+        return {
+          ...current,
+          estadisticas: {
+            ...current.estadisticas,
+            totalPrendas: Number(current.estadisticas.totalPrendas || 0) + 1,
+            prendasPublicadas:
+              adaptedCreated.estadoPublicacion === "PUBLICADA"
+                ? Number(current.estadisticas.prendasPublicadas || 0) + 1
+                : Number(current.estadisticas.prendasPublicadas || 0),
+          },
+        };
+      });
       setProductForm({
         nombre: "",
         descripcion: "",
+        intercambioDeseado: "",
         marca: productOptions.marcasReconocidas[0] || defaultBrandOptions.marcasReconocidas[0],
         marcaPersonalizada: "",
         genero: "UNISEX",
@@ -556,9 +875,11 @@ function UserDashboardPage() {
       });
       setProductStatus({ type: "success", message: "Prenda creada correctamente." });
       setWardrobeView("PUBLICADA");
-      setActiveSection("armario");
+      selectSection("armario");
     } catch (error) {
       setProductStatus({ type: "error", message: error.message });
+    } finally {
+      setIsPublishingProduct(false);
     }
   }
 
@@ -635,6 +956,7 @@ function UserDashboardPage() {
     setEditProductForm({
       nombre: product.nombre || product.name || "",
       descripcion: product.descripcion || "",
+      intercambioDeseado: product.intercambioDeseado || "",
       marca: recognizedBrand ? originalBrand : productOptions.opcionOtraMarca,
       marcaPersonalizada: recognizedBrand ? "" : originalBrand,
       color: product.color || "",
@@ -669,6 +991,7 @@ function UserDashboardPage() {
       const payload = {
         nombre: editProductForm.nombre,
         descripcion: editProductForm.descripcion,
+        intercambioDeseado: editProductForm.intercambioDeseado,
         marca: brandPayload.marca,
         marcaPersonalizada: brandPayload.marcaPersonalizada,
         genero: editProductForm.genero,
@@ -784,6 +1107,47 @@ function UserDashboardPage() {
     return "";
   }
 
+  async function handleRecommendOutfitOld(event) {
+    event.preventDefault();
+    setAiStatus({ type: "", message: "" });
+
+    const validationMessage = validateIaProfile();
+    if (validationMessage) {
+      setAiStatus({ type: "error", message: validationMessage });
+      return;
+    }
+
+    const recommendationPayload = {
+      ...outfitForm,
+      estaturaCm: Number(outfitForm.estaturaCm),
+    };
+
+    try {
+      const data = await recommendOutfit(recommendationPayload);
+      const finalRecommendation =
+        data.referenciasCatalogo?.length || !publicCatalog.length
+          ? data
+          : buildLocalOutfitRecommendation(recommendationPayload, publicCatalog);
+      setAiResult(finalRecommendation);
+      setSelectedTryOnProductIds([]);
+      setTryOnResult(null);
+      setTryOnStatus({ type: "", message: "" });
+      setAiStatus({ type: "success", message: "Recomendación generada." });
+    } catch (error) {
+      const fallbackRecommendation = buildLocalOutfitRecommendation(recommendationPayload, publicCatalog);
+      setAiResult(fallbackRecommendation);
+      setSelectedTryOnProductIds([]);
+      setTryOnResult(null);
+      setTryOnStatus({ type: "", message: "" });
+      setAiStatus({
+        type: fallbackRecommendation.referenciasCatalogo.length ? "success" : "error",
+        message: fallbackRecommendation.referenciasCatalogo.length
+          ? "RecomendaciÃ³n generada con prendas activas del catÃ¡logo."
+          : "No hay prendas activas suficientes para recomendar ahora.",
+      });
+    }
+  }
+
   async function handleRecommendOutfit(event) {
     event.preventDefault();
     setAiStatus({ type: "", message: "" });
@@ -794,18 +1158,38 @@ function UserDashboardPage() {
       return;
     }
 
+    const recommendationPayload = {
+      ...outfitForm,
+      estaturaCm: Number(outfitForm.estaturaCm),
+    };
+
+    const useRecommendation = (recommendation) => {
+      setAiResult(recommendation);
+    };
+
     try {
-      const data = await recommendOutfit({
-        ...outfitForm,
-        estaturaCm: Number(outfitForm.estaturaCm),
+      const data = await recommendOutfit(recommendationPayload);
+      const finalRecommendation =
+        data.referenciasCatalogo?.length || !publicCatalog.length
+          ? data
+          : buildLocalOutfitRecommendation(recommendationPayload, publicCatalog);
+
+      useRecommendation(finalRecommendation);
+      setAiStatus({
+        type: finalRecommendation.referenciasCatalogo?.length ? "success" : "error",
+        message: finalRecommendation.referenciasCatalogo?.length
+          ? "Recomendacion generada con prendas activas del catalogo."
+          : "No hay prendas activas suficientes para recomendar ahora.",
       });
-      setAiResult(data);
-      setSelectedTryOnProductIds([]);
-      setTryOnResult(null);
-      setTryOnStatus({ type: "", message: "" });
-      setAiStatus({ type: "success", message: "Recomendación generada." });
-    } catch (error) {
-      setAiStatus({ type: "error", message: error.message });
+    } catch {
+      const fallbackRecommendation = buildLocalOutfitRecommendation(recommendationPayload, publicCatalog);
+      useRecommendation(fallbackRecommendation);
+      setAiStatus({
+        type: fallbackRecommendation.referenciasCatalogo.length ? "success" : "error",
+        message: fallbackRecommendation.referenciasCatalogo.length
+          ? "Recomendacion generada con prendas activas del catalogo."
+          : "No hay prendas activas suficientes para recomendar ahora.",
+      });
     }
   }
 
@@ -836,7 +1220,7 @@ function UserDashboardPage() {
     });
   }
 
-  async function handleGenerateVirtualTryOn() {
+  async function handleGenerateVirtualTryOnOld() {
     if (!tryOnFaceFile) {
       setTryOnStatus({ type: "error", message: "Sube una foto frontal de tu rostro o medio cuerpo." });
       return;
@@ -870,6 +1254,52 @@ function UserDashboardPage() {
     } catch (error) {
       setTryOnStatus({ type: "error", message: error.message });
     }
+  }
+
+  function handleGenerateVirtualTryOn() {
+    if (!tryOnFaceFile) {
+      setTryOnStatus({ type: "error", message: "Sube una foto frontal de tu rostro o medio cuerpo." });
+      return;
+    }
+
+    if (selectedTryOnProductIds.length !== 2) {
+      setTryOnStatus({ type: "error", message: "Selecciona exactamente 2 prendas recomendadas." });
+      return;
+    }
+
+    const validationMessage = validateIaProfile();
+    if (validationMessage) {
+      setTryOnStatus({ type: "error", message: validationMessage });
+      return;
+    }
+
+    const selectedProducts = recommendedProducts
+      .filter((product) => selectedTryOnProductIds.some((id) => String(id) === String(product.id)))
+      .slice(0, 2);
+
+    if (selectedProducts.length !== 2) {
+      setTryOnStatus({
+        type: "error",
+        message: "No se encontraron las 2 prendas seleccionadas. Vuelve a recomendar outfit y elige dos prendas.",
+      });
+      return;
+    }
+
+    setTryOnResult({
+      estado: "MODO PREPARADO",
+      mensaje: "Prueba virtual preparada con tu rostro, estatura, contextura y las prendas seleccionadas.",
+      imagenUrl: "",
+      prendasSeleccionadas: selectedProducts.map((product) => ({
+        ...product,
+        nombre: product.nombre || product.name,
+      })),
+      estaturaCm: Number(outfitForm.estaturaCm),
+      contextura: outfitForm.contextura,
+    });
+    setTryOnStatus({
+      type: "success",
+      message: "Prueba virtual preparada. Las prendas seleccionadas ya estan vinculadas a tu perfil.",
+    });
   }
 
   function renderStatusMessage(status) {
@@ -925,13 +1355,13 @@ function UserDashboardPage() {
             <button type="button" onClick={() => handleGenderCatalog("UNISEX")}>
               Unisex
             </button>
-            <button type="button" onClick={() => setActiveSection("ia")}>
+            <button type="button" onClick={() => selectSection("ia")}>
               Recomendación IA
             </button>
           </nav>
 
           <div className="user-shop-actions">
-            <button type="button" className="publish-entry-button" onClick={() => setActiveSection("perfil")}>
+            <button type="button" className="publish-entry-button" onClick={() => selectSection("perfil")}>
               <span>{avatarLabel || "U"}</span>
               Publique aquí
             </button>
@@ -946,7 +1376,7 @@ function UserDashboardPage() {
         {inPersonalPanel ? (
           <>
             <div className="user-panel-back-row">
-              <button type="button" className="button-secondary user-panel-back-button" onClick={() => setActiveSection("inicio")}>
+              <button type="button" className="button-secondary user-panel-back-button" onClick={() => selectSection("inicio")}>
                 Volver
               </button>
             </div>
@@ -969,7 +1399,7 @@ function UserDashboardPage() {
                 key={section.id}
                 type="button"
                 className={activeSection === section.id ? "personal-tab personal-tab-active" : "personal-tab"}
-                onClick={() => setActiveSection(section.id)}
+                onClick={() => selectSection(section.id)}
               >
                 {section.label}
               </button>
@@ -985,6 +1415,27 @@ function UserDashboardPage() {
 
         {activeSection === "inicio" ? (
           <div className="user-section-stack">
+            <section className="dashboard-panel user-section-panel brand-marquee-panel">
+              <div className="brand-marquee-head">
+                <p className="section-kicker">Compra por marca</p>
+                <span>Marcas destacadas en movimiento constante</span>
+              </div>
+
+              <div className="brand-marquee-shell" aria-label="Marcas destacadas">
+                <div className="brand-marquee-track">
+                  {[...featuredBrands, ...featuredBrands].map((brand, index) => (
+                    <span key={`${brand.name}-${index}`} className="brand-marquee-item">
+                      {brand.logo ? (
+                        <img src={brand.logo} alt={brand.name} className="brand-marquee-logo" />
+                      ) : (
+                        <span className="brand-marquee-text">{brand.name}</span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </section>
+
             <section className="dashboard-panel user-section-panel">
               <div className="panel-head">
                 <h2>Prendas disponibles</h2>
@@ -1570,7 +2021,7 @@ function UserDashboardPage() {
                       style={
                         resolveBackendMedia(product.imagenUrl)
                           ? {
-                              backgroundImage: `linear-gradient(rgba(38, 50, 34, 0.08), rgba(38, 31, 24, 0.12)), url("${resolveBackendMedia(product.imagenUrl)}")`,
+                              backgroundImage: `url("${resolveBackendMedia(product.imagenUrl)}")`,
                             }
                           : undefined
                       }
@@ -1579,7 +2030,7 @@ function UserDashboardPage() {
                         <span
                           className="wardrobe-card-media-hover"
                           style={{
-                            backgroundImage: `linear-gradient(rgba(38, 50, 34, 0.08), rgba(38, 31, 24, 0.12)), url("${resolveBackendMedia(product.imagenSecundariaUrl)}")`,
+                            backgroundImage: `url("${resolveBackendMedia(product.imagenSecundariaUrl)}")`,
                           }}
                         ></span>
                       ) : null}
@@ -1814,6 +2265,22 @@ function UserDashboardPage() {
                               ))}
                             </select>
                           </label>
+                          {editProductForm.tipoPublicacion.includes("INTERCAMBIO") ? (
+                            <label className="full-span">
+                              Prenda deseada para intercambio
+                              <textarea
+                                rows="3"
+                                value={editProductForm.intercambioDeseado}
+                                onChange={(event) =>
+                                  setEditProductForm((current) => ({
+                                    ...current,
+                                    intercambioDeseado: event.target.value,
+                                  }))
+                                }
+                                placeholder="Ejemplo: Cambio por un pantalÃ³n de vestir color negro talla M."
+                              />
+                            </label>
+                          ) : null}
                           <label>
                             Precio
                             <input
@@ -2255,6 +2722,22 @@ function UserDashboardPage() {
                     ))}
                   </select>
                 </label>
+                {productForm.tipoPublicacion.includes("INTERCAMBIO") ? (
+                  <label className="full-span">
+                    Prenda deseada para intercambio
+                    <textarea
+                      rows="3"
+                      value={productForm.intercambioDeseado}
+                      onChange={(event) =>
+                        setProductForm((current) => ({
+                          ...current,
+                          intercambioDeseado: event.target.value,
+                        }))
+                      }
+                      placeholder="Ejemplo: Cambio por un pantalÃ³n de vestir color negro talla M."
+                    />
+                  </label>
+                ) : null}
                 <label>
                   Precio
                   <input
@@ -2309,8 +2792,8 @@ function UserDashboardPage() {
 
               {renderStatusMessage(productStatus)}
 
-              <button type="submit" className="button-primary module-submit">
-                Publicar prenda
+              <button type="submit" className="button-primary module-submit" disabled={isPublishingProduct}>
+                {isPublishingProduct ? "Publicando..." : "Publicar prenda"}
               </button>
             </form>
           </section>
@@ -2448,32 +2931,18 @@ function UserDashboardPage() {
                 {recommendedProducts.length ? (
                   <div className="result-section">
                     <h3>Prendas recomendadas</h3>
-                    <p className="tryon-helper">Selecciona exactamente 2 prendas para generar la prueba virtual.</p>
-                    <div className="product-grid user-dashboard-products tryon-select-grid">
+                    <p className="recommendation-helper">
+                      Recomendaciones filtradas por estilo, ocasion, clima, estatura, contextura y talla sugerida.
+                    </p>
+                    <div className="product-grid user-dashboard-products">
                       {recommendedProducts.map((product) => (
-                        <article
-                          key={product.id}
-                          className={
-                            selectedTryOnProductIds.includes(product.id)
-                              ? "tryon-select-card tryon-select-card-active"
-                              : "tryon-select-card"
-                          }
-                        >
-                          <ProductCard product={product} />
-                          <button
-                            type="button"
-                            className="tryon-select-button"
-                            onClick={() => handleToggleTryOnProduct(product.id)}
-                          >
-                            {selectedTryOnProductIds.includes(product.id) ? "Seleccionada" : "Elegir para prueba"}
-                          </button>
-                        </article>
+                        <ProductCard key={product.id} product={product} />
                       ))}
                     </div>
                   </div>
                 ) : null}
 
-                {recommendedProducts.length ? (
+                {false ? (
                   <div className="virtual-tryon-panel">
                     <div className="virtual-tryon-copy">
                       <h3>Prueba virtual con tu rostro</h3>

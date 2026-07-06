@@ -20,6 +20,20 @@ function buildWhatsappLink(contactValue, productName) {
   return `https://wa.me/51${localPhone}?text=${message}`;
 }
 
+function getPaymentMethodClass(methodName) {
+  const normalized = String(methodName || "").trim().toUpperCase();
+
+  if (normalized.includes("YAPE")) {
+    return "checkout-payment-card-yape";
+  }
+
+  if (normalized.includes("PLIN")) {
+    return "checkout-payment-card-plin";
+  }
+
+  return "";
+}
+
 function ProductDetailPage() {
   const { id } = useParams();
   const session = getAuthSession();
@@ -72,6 +86,7 @@ function ProductDetailPage() {
   const detailImage = resolveBackendMedia(product?.imagenUrl);
   const sellerPaymentMethods = sellerProfile?.metodosPago || [];
   const isOwnProduct = String(product?.usuarioId || "") === String(session?.usuarioId || "");
+  const allowsExchange = String(product?.tipoPublicacion || "").includes("INTERCAMBIO");
   const whatsappLink = buildWhatsappLink(
     product?.contacto || sellerProfile?.telefono,
     product?.nombre || "esta prenda",
@@ -166,6 +181,13 @@ function ProductDetailPage() {
             <div><strong>Contacto</strong><span>{product?.contacto || "No registrado"}</span></div>
           </div>
 
+          {allowsExchange && product?.intercambioDeseado ? (
+            <div className="detail-exchange-box">
+              <strong>Intercambia por</strong>
+              <p>{product.intercambioDeseado}</p>
+            </div>
+          ) : null}
+
           <div className="detail-actions">
             {!isOwnProduct ? (
               <button type="button" className="button-primary" onClick={handleBuyProduct}>
@@ -199,7 +221,10 @@ function ProductDetailPage() {
           <div className="checkout-payment-grid">
             {sellerPaymentMethods.length ? (
               sellerPaymentMethods.map((method) => (
-                <article key={method.id || method.tipoMetodoPago} className="checkout-payment-card">
+                <article
+                  key={method.id || method.tipoMetodoPago}
+                  className={`checkout-payment-card ${getPaymentMethodClass(method.tipoMetodoPago)}`}
+                >
                   <div>
                     <strong>{method.tipoMetodoPago}</strong>
                     <p>{method.numero || "Numero no registrado"}</p>
